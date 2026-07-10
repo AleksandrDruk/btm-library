@@ -1,5 +1,5 @@
 {
-  "api_base": "",
+  "api_base": "https://btm-logo-uploader-api.sashamironov25650v.workers.dev",
   "catalog_url": "https://raw.githubusercontent.com/AleksandrDruk/btm-library/main/catalog.json",
-  "turnstile_site_key": ""
+  "turnstile_site_key": "0x4AAAAAADzeO6oGbZ7TBD9W"
 }
