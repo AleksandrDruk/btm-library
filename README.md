@@ -4,6 +4,14 @@ Public read-only source catalog for Brand Tables Manager logo imports.
 
 The WordPress plugin reads `catalog.json` in wp-admin only. A selected file is downloaded server-side, validated, copied into the local WordPress Media Library and stored in BTM as a normal attachment ID. Public pages never load images from this repository.
 
+## Network notes
+
+- The manifest is cached by WordPress for 12 hours. Downloads happen only when a manager selects a logo; they are not part of public page rendering.
+- The WordPress server must be allowed to make outbound HTTPS requests to `raw.githubusercontent.com`. If `WP_HTTP_BLOCK_EXTERNAL` is enabled, add that host to `WP_ACCESSIBLE_HOSTS`.
+- Cloudflare in front of the WordPress site does not proxy the outbound GitHub request. BTM uses authenticated `admin-ajax.php` POST requests with no-cache headers.
+- If Keitaro shares the same public hostname, `/wp-admin/`, `/wp-admin/admin-ajax.php` and `/wp-content/uploads/` must continue to route to WordPress. The logo catalog does not call Keitaro and does not change tracker routes.
+- A preview blocked by browser CSP does not block the server-side import; the UI shows a preview-unavailable fallback.
+
 ## Add a logo
 
 1. Add a versioned JPEG, PNG or WebP file below `logos/<brand>/`.
