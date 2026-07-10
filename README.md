@@ -2,6 +2,8 @@
 
 Public read-only source catalog for Brand Tables Manager logo imports.
 
+Manifest URL: `https://raw.githubusercontent.com/AleksandrDruk/btm-library/main/catalog.json`
+
 The WordPress plugin reads `catalog.json` in wp-admin only. A selected file is downloaded server-side, validated, copied into the local WordPress Media Library and stored in BTM as a normal attachment ID. Public pages never load images from this repository.
 
 ## Network notes
