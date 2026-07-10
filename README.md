@@ -45,6 +45,8 @@ Example:
 
 Do not overwrite a published image at an existing versioned path. Add a new file, keep the same `id`, increase `version`, update `path`, and increase `catalog_version`.
 
+Never delete a published versioned file. Some sites can use the 12-hour catalog cache or the last-known-good copy for up to 7 days, and an older attachment may need to be re-imported later.
+
 The catalog does not add prefixes, hashes or generated identifiers to public filenames. WordPress may append `-1`, `-2`, and so on when a local filename already exists.
 
 ## Image rules
