@@ -1,0 +1,48 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "btm-logo-uploader-api",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-07-10",
+  "workers_dev": true,
+  "secrets": {
+    "required": [
+      "PASSWORD_HASH",
+      "SESSION_SECRET",
+      "TURNSTILE_SECRET",
+      "GITHUB_APP_ID",
+      "GITHUB_APP_PRIVATE_KEY"
+    ]
+  },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "ALLOWED_ORIGINS": "https://aleksandrdruk.github.io",
+    "GITHUB_OWNER": "AleksandrDruk",
+    "GITHUB_REPO": "btm-library",
+    "GITHUB_BASE_BRANCH": "main",
+    "TURNSTILE_HOSTNAME": "aleksandrdruk.github.io",
+    "SESSION_TTL_SECONDS": "1800",
+    "SESSION_VERSION": "1"
+  },
+  "ratelimits": [
+    {
+      "name": "LOGIN_RATE_LIMITER",
+      "namespace_id": "41001",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    },
+    {
+      "name": "UPLOAD_RATE_LIMITER",
+      "namespace_id": "41002",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  }
+}

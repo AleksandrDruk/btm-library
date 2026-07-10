@@ -1,5 +1,123 @@
 {
   "schema_version": 1,
-  "catalog_version": 1,
-  "items": []
+  "catalog_version": 2,
+  "items": [
+    {
+      "id": "bet-republic-primary",
+      "brand": "Bet Republic",
+      "variant": "Primary",
+      "path": "logos/bet-republic/bet-republic-primary-v1.webp",
+      "suggested_filename": "bet-republic.webp",
+      "version": 1,
+      "tags": ["bet republic", "primary", "at"]
+    },
+    {
+      "id": "ivibet-primary",
+      "brand": "Ivibet",
+      "variant": "Primary",
+      "path": "logos/ivibet/ivibet-primary-v1.png",
+      "suggested_filename": "ivibet.png",
+      "version": 1,
+      "tags": ["ivibet", "primary", "at"]
+    },
+    {
+      "id": "stone-vegas-primary",
+      "brand": "Stone Vegas",
+      "variant": "Primary",
+      "path": "logos/stone-vegas/stone-vegas-primary-v1.png",
+      "suggested_filename": "stone-vegas.png",
+      "version": 1,
+      "tags": ["stone vegas", "primary", "at"]
+    },
+    {
+      "id": "spinsup-dark",
+      "brand": "Spinsup",
+      "variant": "Dark",
+      "path": "logos/spinsup/spinsup-dark-v1.jpg",
+      "suggested_filename": "spinsup-dark.jpg",
+      "version": 1,
+      "tags": ["spinsup", "dark", "at"]
+    },
+    {
+      "id": "slotsgem-primary",
+      "brand": "Slotsgem",
+      "variant": "Primary",
+      "path": "logos/slotsgem/slotsgem-primary-v1.jpg",
+      "suggested_filename": "slotsgem.jpg",
+      "version": 1,
+      "tags": ["slotsgem", "primary", "at"]
+    },
+    {
+      "id": "fortune-play-primary",
+      "brand": "Fortune Play",
+      "variant": "Primary",
+      "path": "logos/fortune-play/fortune-play-primary-v1.jpg",
+      "suggested_filename": "fortune-play.jpg",
+      "version": 1,
+      "tags": ["fortune play", "primary", "at"]
+    },
+    {
+      "id": "rooster-bet-primary",
+      "brand": "Rooster.bet",
+      "variant": "Primary",
+      "path": "logos/rooster-bet/rooster-bet-primary-v1.png",
+      "suggested_filename": "rooster-bet.png",
+      "version": 1,
+      "tags": ["rooster.bet", "rooster", "primary", "at"]
+    },
+    {
+      "id": "miilioner-primary",
+      "brand": "Miilioner",
+      "variant": "Primary",
+      "path": "logos/miilioner/miilioner-primary-v1.webp",
+      "suggested_filename": "miilioner.webp",
+      "version": 1,
+      "tags": ["miilioner", "primary", "at"]
+    },
+    {
+      "id": "alawin-primary",
+      "brand": "Alawin",
+      "variant": "Primary",
+      "path": "logos/alawin/alawin-primary-v1.png",
+      "suggested_filename": "alawin.png",
+      "version": 1,
+      "tags": ["alawin", "primary", "fi"]
+    },
+    {
+      "id": "ninlay-exact-dark",
+      "brand": "Ninlay",
+      "variant": "Exact Dark",
+      "path": "logos/ninlay/ninlay-exact-dark-v1.jpg",
+      "suggested_filename": "ninlay-exact-dark.jpg",
+      "version": 1,
+      "tags": ["ninlay", "exact dark", "dark", "fi"]
+    },
+    {
+      "id": "lanista-primary",
+      "brand": "Lanista",
+      "variant": "Primary",
+      "path": "logos/lanista/lanista-primary-v1.webp",
+      "suggested_filename": "lanista.webp",
+      "version": 1,
+      "tags": ["lanista", "primary", "fi"]
+    },
+    {
+      "id": "slotuna-primary",
+      "brand": "Slotuna",
+      "variant": "Primary",
+      "path": "logos/slotuna/slotuna-primary-v1.webp",
+      "suggested_filename": "slotuna.webp",
+      "version": 1,
+      "tags": ["slotuna", "primary", "fi"]
+    },
+    {
+      "id": "sportuna-primary",
+      "brand": "Sportuna",
+      "variant": "Primary",
+      "path": "logos/sportuna/sportuna-primary-v1.webp",
+      "suggested_filename": "sportuna.webp",
+      "version": 1,
+      "tags": ["sportuna", "primary", "fi"]
+    }
+  ]
 }

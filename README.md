@@ -1,60 +1,196 @@
 # BTM Logo Library
 
-Public read-only source catalog for Brand Tables Manager logo imports.
+Публичный read-only каталог логотипов для Brand Tables Manager и отдельный защищённый интерфейс для подготовки изменений через GitHub Pull Request.
 
-Manifest URL: `https://raw.githubusercontent.com/AleksandrDruk/btm-library/main/catalog.json`
+- Manifest: `https://raw.githubusercontent.com/AleksandrDruk/btm-library/main/catalog.json`
+- GitHub Pages после включения: `https://aleksandrdruk.github.io/btm-library/`
+- Текущий catalog schema: `1`
+- В `catalog_version: 2` загружены 13 изображений из наборов `AT LOGO` и `FI IMG`.
 
-The WordPress plugin reads `catalog.json` in wp-admin only. A selected file is downloaded server-side, validated, copied into the local WordPress Media Library and stored in BTM as a normal attachment ID. Public pages never load images from this repository.
+WordPress получает каталог только в wp-admin. Выбранный файл скачивается сервером сайта, проходит повторную проверку, попадает в локальную Media Library и хранится в BTM как обычный attachment ID. Публичный frontend сайта не обращается к GitHub или Worker.
 
-## Network notes
+Интерфейс показывает миниатюры всех опубликованных вариантов. Preview URL строится только из проверенного `path` и фиксированного base URL этого репозитория; произвольный внешний URL manifest передать не может.
 
-- The manifest is cached by WordPress for 12 hours. Downloads happen only when a manager selects a logo; they are not part of public page rendering.
-- The WordPress server must be allowed to make outbound HTTPS requests to `raw.githubusercontent.com`. If `WP_HTTP_BLOCK_EXTERNAL` is enabled, add that host to `WP_ACCESSIBLE_HOSTS`.
-- Cloudflare in front of the WordPress site does not proxy the outbound GitHub request. BTM uses authenticated `admin-ajax.php` POST requests with no-cache headers.
-- If Keitaro shares the same public hostname, `/wp-admin/`, `/wp-admin/admin-ajax.php` and `/wp-content/uploads/` must continue to route to WordPress. The logo catalog does not call Keitaro and does not change tracker routes.
-- A preview blocked by browser CSP does not block the server-side import; the UI shows a preview-unavailable fallback.
+## Как устроена запись
 
-## Add a logo
+GitHub Pages не хранит пароль и не может менять репозиторий самостоятельно:
 
-1. Add a versioned JPEG, PNG or WebP file below `logos/<brand>/`.
-2. Add one item to `catalog.json`.
-3. Increment `catalog_version`.
-4. Commit and push both changes together.
+1. Менеджер вводит общий пароль и проходит Cloudflare Turnstile.
+2. Cloudflare Worker проверяет пароль и выдаёт подписанную сессию на 30 минут.
+3. Сессия хранится только в памяти вкладки; после refresh нужен новый вход.
+4. Worker повторно валидирует файлы и актуальный `catalog.json`.
+5. GitHub App создаёт отдельную ветку, один атомарный commit и Pull Request.
+6. `main` не меняется автоматически. PR объединяет владелец после `validate-catalog` и review.
 
-Example:
+GitHub App устанавливается только на `AleksandrDruk/btm-library`. Ей нужны только repository permissions `Contents: Read and write` и `Pull requests: Read and write`. Webhooks, OAuth authorization, Administration, Actions и Workflows не нужны.
+
+## Бренды, варианты и дубли
+
+У одного бренда может быть несколько логотипов. Уникальна нормализованная пара `brand + variant`:
 
 ```json
 {
-  "id": "bet365-primary",
-  "brand": "Bet365",
-  "variant": "Primary",
-  "path": "logos/bet365/bet365-primary-v1.webp",
-  "suggested_filename": "bet365-primary.webp",
+  "id": "bet-republic-dark",
+  "brand": "Bet Republic",
+  "variant": "Dark",
+  "path": "logos/bet-republic/bet-republic-dark-v1.webp",
+  "suggested_filename": "bet-republic-dark.webp",
   "version": 1,
-  "tags": ["bet365", "primary", "light"]
+  "tags": ["bet republic", "dark"]
 }
 ```
 
-## Contract
+- `Primary` и `Dark` для одного бренда — две допустимые позиции.
+- Второй `Primary` для того же бренда — дубль и отклоняется до создания PR.
+- `id` стабилен при обновлении изображения.
+- Новая версия увеличивает `version`, получает новый versioned path, а старый файл остаётся неизменным.
+- Никаких хэшей, случайных идентификаторов или доменных префиксов в каталоге нет.
+- `suggested_filename` — только предложение. Перед импортом в WordPress менеджер может изменить имя; WordPress штатно добавит `-1`, если локальное имя уже занято.
 
-- `id`: unique stable lowercase ID using letters, numbers, `_` and `-`; maximum 80 characters.
-- `brand`: visible brand name.
-- `variant`: optional visible variant name such as `Primary`, `Dark` or `Square`.
-- `path`: unique relative file path inside `logos/`.
-- `suggested_filename`: basename shown to the manager before import. The manager can edit it.
-- `version`: positive integer. Increase it when the image changes.
-- `tags`: optional search aliases.
+## Удаление
 
-Do not overwrite a published image at an existing versioned path. Add a new file, keep the same `id`, increase `version`, update `path`, and increase `catalog_version`.
+Интерфейс поддерживает два режима:
 
-Never delete a published versioned file. Some sites can use the 12-hour catalog cache or the last-known-good copy for up to 7 days, and an older attachment may need to be re-imported later.
+1. **Удалить из каталога** — позиция исчезает из `catalog.json`, но versioned-файл остаётся. Это безопасный режим по умолчанию для 12-часового cache и last-known-good копии BTM.
+2. **Также удалить текущий файл** — позиция и текущий файл удаляются одним PR после дополнительного подтверждения. Старые Git commits всё равно сохраняют историю.
 
-The catalog does not add prefixes, hashes or generated identifiers to public filenames. WordPress may append `-1`, `-2`, and so on when a local filename already exists.
+Удаление из центрального каталога не удаляет attachments, уже импортированные на WordPress-сайты. Оно также не меняет существующие таблицы BTM.
 
-## Image rules
+## Ограничения файлов
 
-- JPEG, PNG and WebP only.
-- Maximum file size: 10 MiB.
-- Maximum side: 6000 pixels.
-- Maximum area: 16 million pixels.
-- No SVG, GIF, AVIF, symlinks, absolute paths, query strings or Git LFS pointers.
+- JPEG, PNG и WebP.
+- До 10 МиБ на файл.
+- Сторона до 6000 px.
+- До 16 миллионов пикселей.
+- До 20 операций и 32 МиБ в одном запросе.
+- Запрещены SVG, GIF, AVIF, Git LFS pointers, symlinks, traversal и произвольные URL.
+- Браузер декодирует изображение до постановки в очередь; Worker и CI повторно проверяют MIME, размеры и целостность контейнера.
+- Опубликованный versioned-файл нельзя перезаписать другими байтами.
+
+## Локальная проверка
+
+Требуется Node.js 20+; npm-зависимостей у проекта нет.
+
+```bash
+npm test
+npm run check
+npm run inspect-images -- /path/to/images
+npm run dev
+```
+
+Локальный UI: `http://127.0.0.1:4173/`.
+
+Тестовый пароль dev-server: `test-only-password-1234567890`. Он работает только в локальном mock-server и не используется Worker.
+
+## Первичная настройка production
+
+### 1. GitHub App
+
+В GitHub откройте `Settings -> Developer settings -> GitHub Apps -> New GitHub App`:
+
+- имя: например `BTM Logo Uploader`;
+- homepage URL: `https://aleksandrdruk.github.io/btm-library/`;
+- Webhook: выключен;
+- Repository permissions:
+  - `Contents: Read and write`;
+  - `Pull requests: Read and write`;
+  - всё остальное: `No access`;
+- установка: `Only on this account`.
+
+После создания:
+
+1. Запишите `App ID`.
+2. Сгенерируйте private key `.pem`.
+3. Установите App через `Install App -> Only select repositories -> btm-library`.
+4. Не добавляйте App в bypass list правил ветки `main`.
+
+### 2. Cloudflare Turnstile
+
+Создайте Managed widget `BTM Logo Uploader` и разрешите точный hostname:
+
+```text
+aleksandrdruk.github.io
+```
+
+Сохраните public site key и secret key. Secret никогда не добавляется в Git.
+
+### 3. Секреты Worker
+
+Общий пароль должен быть минимум 20 символов. Хэш и session secret генерируются локально:
+
+```bash
+npm run password-hash
+npm run session-secret
+```
+
+Создайте локальный `secrets.production.json`; он игнорируется Git и после деплоя должен быть удалён:
+
+```json
+{
+  "PASSWORD_HASH": "pbkdf2-sha256$...",
+  "SESSION_SECRET": "...",
+  "TURNSTILE_SECRET": "...",
+  "GITHUB_APP_ID": "...",
+  "GITHUB_APP_PRIVATE_KEY": "<paste the complete downloaded PEM value here>"
+}
+```
+
+Не используйте production-пароль в shell argument, commit, issue или PR.
+
+### 4. Deploy Worker
+
+В проекте проверена закреплённая версия Wrangler `4.106.0`:
+
+```bash
+npx --yes wrangler@4.106.0 login
+npx --yes wrangler@4.106.0 deploy --secrets-file secrets.production.json
+```
+
+`wrangler.jsonc` требует все пять secrets и не позволит production deploy с неполной конфигурацией. После успеха:
+
+1. Удалите локальный `secrets.production.json`.
+2. Откройте `<worker-url>/health`; ожидается `{"ok":true,"ready":true,...}`.
+3. Укажите Worker URL и Turnstile site key в `config.json`.
+4. В CSP `index.html` замените wildcard `https://*.workers.dev` на точный origin Worker.
+5. Повторно выполните `npm test` и `npm run check`, затем push.
+
+### 5. GitHub Pages
+
+После push откройте репозиторий:
+
+`Settings -> Pages -> Build and deployment`
+
+- Source: `Deploy from a branch`;
+- Branch: `main`;
+- Folder: `/(root)`;
+- `Save`.
+
+После публикации откройте `https://aleksandrdruk.github.io/btm-library/`, выполните вход, создайте тестовый PR и убедитесь, что `validate-catalog` завершился успешно.
+
+### 6. Защита main
+
+Создайте GitHub Ruleset или Branch protection для `main`:
+
+- Require a pull request before merging;
+- Require status checks to pass;
+- required check: `validate-catalog`;
+- запретить force push и deletion;
+- не разрешать GitHub App обходить правило.
+
+Check появится в списке после первого тестового PR.
+
+## Cloudflare и Keitaro на WordPress-сайтах
+
+- Cloudflare перед WordPress не проксирует исходящий HTTPS-запрос сервера к `raw.githubusercontent.com`.
+- BTM использует только authenticated `wp-admin/admin-ajax.php` POST и no-cache headers. Общего доступа к Cloudflare всех сайтов не требуется.
+- Если включён `WP_HTTP_BLOCK_EXTERNAL`, добавьте `raw.githubusercontent.com` в `WP_ACCESSIBLE_HOSTS`.
+- Если Keitaro делит hostname с WordPress, маршруты `/wp-admin/`, `/wp-admin/admin-ajax.php` и `/wp-content/uploads/` должны продолжать попадать в WordPress.
+- Блокировка preview браузерным CSP не блокирует server-side импорт в Media Library.
+
+## Rollback
+
+- UI/Worker: вернуть предыдущий Git commit и повторить deploy.
+- Компрометация общего пароля: сгенерировать новый `PASSWORD_HASH` и увеличить `SESSION_VERSION`, чтобы погасить существующие сессии.
+- Компрометация GitHub App key: удалить key в GitHub, создать новый и заменить Worker secret.
+- Ошибочный PR: не merge. После merge — revert commit; уже импортированные WordPress attachments откатываются отдельно.
+- Удаление Worker или GitHub Pages не ломает уже сохранённые таблицы и изображения на WordPress-сайтах.

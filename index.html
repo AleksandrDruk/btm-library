@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' blob: data: https://raw.githubusercontent.com; connect-src 'self' https://raw.githubusercontent.com https://*.workers.dev http://127.0.0.1:* http://localhost:*; frame-src https://challenges.cloudflare.com; object-src 'none'">
+  <title>BTM Logo Library</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Brand Tables Manager</p>
+        <h1>Библиотека логотипов</h1>
+        <p class="lede">Загрузите изображения, проверьте автоматически заполненные поля и отправьте одну проверяемую заявку в GitHub.</p>
+      </div>
+      <div class="catalog-summary" aria-live="polite">
+        <span>Каталог</span>
+        <strong id="catalog-summary">Загрузка…</strong>
+      </div>
+    </header>
+
+    <section id="setup-panel" class="notice notice-warning" hidden aria-labelledby="setup-title">
+      <h2 id="setup-title">Интерфейс ещё не подключён к API</h2>
+      <p id="setup-message">После деплоя Worker укажите его адрес и Turnstile site key в <code>config.json</code>.</p>
+    </section>
+
+    <section id="login-panel" class="panel login-panel" aria-labelledby="login-title">
+      <div class="panel-heading">
+        <div>
+          <p class="step">Шаг 1</p>
+          <h2 id="login-title">Вход</h2>
+        </div>
+        <span class="security-note">Сессия действует 30 минут и не сохраняется в браузере</span>
+      </div>
+
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="password">Общий пароль</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" minlength="20" required>
+          <p class="field-hint">Пароль отправляется только защищённому API и не хранится на этой странице.</p>
+        </div>
+        <div id="turnstile-container" class="turnstile-container" aria-label="Проверка безопасности"></div>
+        <button id="login-button" class="button button-primary" type="submit" disabled>Войти</button>
+      </form>
+      <p id="login-status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="uploader-panel" class="panel" hidden aria-labelledby="uploader-title">
+      <div class="panel-heading">
+        <div>
+          <p class="step">Шаг 2</p>
+          <h2 id="uploader-title">Подготовка логотипов</h2>
+        </div>
+        <button id="logout-button" class="button button-secondary" type="button">Выйти</button>
+      </div>
+
+      <label id="drop-zone" class="drop-zone" for="file-input">
+        <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+        <span class="drop-icon" aria-hidden="true">＋</span>
+        <strong>Перетащите изображения сюда</strong>
+        <span>или нажмите, чтобы выбрать JPEG, PNG или WebP</span>
+        <small>До 20 файлов за раз, не более 10 МБ каждый</small>
+      </label>
+
+      <div id="queue-empty" class="empty-state">
+        <h3>Очередь пока пустая</h3>
+        <p>После выбора файла появятся предварительный просмотр и редактируемые параметры каталога.</p>
+      </div>
+
+      <div id="queue" class="queue" aria-live="polite"></div>
+
+      <section class="catalog-manager" aria-labelledby="catalog-manager-title">
+        <div class="subsection-heading">
+          <div>
+            <h3 id="catalog-manager-title">Удаление из каталога</h3>
+            <p>Удаление также отправляется в PR. По умолчанию versioned-файл остаётся в истории для старых кешей.</p>
+          </div>
+          <label class="catalog-filter">
+            <span>Найти позицию</span>
+            <input id="catalog-filter" type="search" placeholder="Бренд, вариант или id" autocomplete="off">
+          </label>
+        </div>
+        <div id="catalog-items" class="catalog-items"></div>
+        <p id="catalog-items-empty" class="empty-inline">В каталоге пока нет позиций.</p>
+      </section>
+
+      <div class="submit-bar">
+        <div>
+          <strong id="queue-count">0 файлов</strong>
+          <span>Изображения и <code>catalog.json</code> попадут в один commit.</span>
+        </div>
+        <button id="upload-button" class="button button-primary" type="button" disabled>Создать PR</button>
+      </div>
+
+      <p id="upload-status" class="status" role="status" aria-live="polite"></p>
+      <div id="success-panel" class="notice notice-success" hidden>
+        <h3>Загрузка подготовлена</h3>
+        <p>GitHub PR создан. После проверки его нужно подтвердить и объединить с <code>main</code>.</p>
+        <a id="pull-request-link" class="button button-secondary" href="#" target="_blank" rel="noopener noreferrer">Открыть PR</a>
+      </div>
+    </section>
+
+    <footer>
+      <p>Страница не записывает изображения напрямую в WordPress. После merge BTM скачивает выбранный логотип в локальную медиатеку сайта.</p>
+    </footer>
+  </main>
+
+  <template id="queue-item-template">
+    <article class="queue-item">
+      <div class="preview-wrap">
+        <img class="preview" alt="">
+        <div class="file-meta">
+          <strong class="file-name"></strong>
+          <span class="file-details"></span>
+        </div>
+      </div>
+
+      <div class="item-fields">
+        <div class="field">
+          <label>Действие</label>
+          <select class="mode">
+            <option value="new">Новый логотип</option>
+            <option value="update">Новая версия существующего</option>
+          </select>
+        </div>
+
+        <div class="field existing-field" hidden>
+          <label>Позиция каталога</label>
+          <select class="asset-id"></select>
+        </div>
+
+        <div class="field">
+          <label>Бренд</label>
+          <input class="brand" type="text" maxlength="100" required>
+        </div>
+
+        <div class="field">
+          <label>Вариант</label>
+          <input class="variant" type="text" maxlength="60" placeholder="Primary">
+        </div>
+
+        <div class="field">
+          <label>Имя файла на сайте</label>
+          <input class="suggested-filename" type="text" maxlength="100" required>
+          <p class="field-hint">Можно изменить. Префиксы и хэши не добавляются.</p>
+        </div>
+
+        <div class="field field-wide">
+          <label>Теги через запятую</label>
+          <input class="tags" type="text" maxlength="500" placeholder="brand, primary, light">
+        </div>
+      </div>
+
+      <div class="item-actions">
+        <p class="item-error" role="alert"></p>
+        <button class="button button-danger remove-item" type="button">Удалить из очереди</button>
+      </div>
+    </article>
+  </template>
+
+  <template id="catalog-item-template">
+    <article class="catalog-item">
+      <div class="catalog-item-preview-wrap">
+        <img class="catalog-item-preview" alt="" width="80" height="56" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+        <span class="catalog-item-preview-fallback" hidden>Нет превью</span>
+      </div>
+      <div class="catalog-item-copy">
+        <strong class="catalog-item-name"></strong>
+        <span class="catalog-item-meta"></span>
+      </div>
+      <label class="purge-option" hidden>
+        <input class="purge-file" type="checkbox">
+        <span>Также удалить текущий файл</span>
+      </label>
+      <button class="button button-danger toggle-delete" type="button">Удалить</button>
+    </article>
+  </template>
+</body>
+</html>
