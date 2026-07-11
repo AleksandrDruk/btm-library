@@ -212,7 +212,14 @@
 
           <div class="field">
             <label for="affiliate-brand">Бренд</label>
-            <input id="affiliate-brand" type="text" maxlength="100" autocomplete="off" required>
+            <input id="affiliate-brand" type="text" maxlength="100" autocomplete="off" aria-describedby="affiliate-existing-brand-message" required>
+            <div id="affiliate-existing-brand" class="affiliate-existing-brand" role="status" aria-live="polite" hidden>
+              <div>
+                <strong>Бренд уже есть в каталоге</strong>
+                <p id="affiliate-existing-brand-message"></p>
+              </div>
+              <button id="affiliate-open-existing-brand" class="button button-secondary" type="button"></button>
+            </div>
           </div>
           <div class="field">
             <label for="affiliate-logo">Логотип для превью</label>

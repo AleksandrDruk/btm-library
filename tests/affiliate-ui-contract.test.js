@@ -31,6 +31,16 @@ test('affiliate form keeps native validation, labels, and focus recovery', () =>
   assert.match(appCode, /discardAffiliateFormForCatalogReplacement\(\)/);
 });
 
+test('duplicate brand guidance directs creation to the existing catalog entry', () => {
+  assert.match(indexHtml, /id="affiliate-existing-brand"[^>]+role="status"[^>]+aria-live="polite"[^>]+hidden/);
+  assert.match(indexHtml, /id="affiliate-open-existing-brand"[^>]+type="button"/);
+  assert.match(appCode, /affiliateBrandKey\(elements\.affiliateBrand\.value\)/);
+  assert.match(appCode, /item\.id !== state\.affiliateEditingId/);
+  assert.match(appCode, /affiliateBrand\.setCustomValidity\(existingItem/);
+  assert.match(appCode, /Boolean\(state\.affiliateDuplicateBrandId\)/);
+  assert.match(appCode, /editAffiliateItem\(item, `btm-affiliate-edit-\$\{item\.id\}`\)/);
+});
+
 test('affiliate CSS preserves compact list and mobile form order', () => {
   assert.match(styles, /\.affiliate-items\s*\{[^}]*gap:\s*0;[^}]*overflow:\s*hidden;/s);
   assert.match(styles, /\.affiliate-item\s*\{[^}]*grid-template-areas:\s*"logo copy links actions";/s);

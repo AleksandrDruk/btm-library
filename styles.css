@@ -796,6 +796,37 @@ h3 {
   margin-top: 16px;
 }
 
+.affiliate-existing-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border: 1px solid #c9cff8;
+  border-radius: 8px;
+  background: #f4f5ff;
+  color: #242c62;
+}
+
+.affiliate-existing-brand strong,
+.affiliate-existing-brand p {
+  display: block;
+}
+
+.affiliate-existing-brand p {
+  margin: 3px 0 0;
+  color: #505b82;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.affiliate-existing-brand .button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 5px 10px;
+}
+
 .affiliate-links-fieldset {
   min-width: 0;
   margin: 20px 0 0;
@@ -1300,6 +1331,15 @@ code {
   .affiliate-link-editor-row .affiliate-remove-link {
     justify-self: start;
     width: auto;
+  }
+
+  .affiliate-existing-brand {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .affiliate-existing-brand .button {
+    width: 100%;
   }
 
   .affiliate-items {
