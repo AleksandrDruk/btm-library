@@ -242,6 +242,8 @@ npx --yes wrangler@4.106.0 deploy --secrets-file secrets.production.json
 
 Check появится в списке после первого тестового PR.
 
+Оба workflow запускаются через `pull_request`, чтобы required checks были привязаны к текущему PR head. `validate-catalog` при этом исполняет только trusted validator из `github.event.pull_request.base.sha`; candidate checkout используется как данные, credentials не сохраняются, token остаётся read-only.
+
 Для приватного `btm-affiliate-library` платный plan не требуется. На GitHub Free checks видимы, но Worker сам является обязательным approval gate и не полагается на branch protection:
 
 1. PR должен содержать один commit и менять только `catalog.json`.

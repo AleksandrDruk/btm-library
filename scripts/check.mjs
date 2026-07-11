@@ -36,6 +36,17 @@ JSON.parse(await readFile('config.json', 'utf8'));
 JSON.parse(await readFile('package.json', 'utf8'));
 await validateRepository('.');
 
+const validatorWorkflow = await readFile('.github/workflows/validate-catalog.yml', 'utf8');
+if (
+  !validatorWorkflow.includes('  pull_request:\n')
+  || validatorWorkflow.includes('pull_request_target:')
+  || !validatorWorkflow.includes('github.event.pull_request.base.sha')
+  || !validatorWorkflow.includes('persist-credentials: false')
+  || !validatorWorkflow.includes('permissions:\n  contents: read')
+) {
+  throw new Error('Trusted head-bound catalog workflow contract is incomplete.');
+}
+
 const browserCode = await readFile('app.js', 'utf8');
 const forbiddenPatterns = [
   ['innerHTML', /\.innerHTML\s*=/],
