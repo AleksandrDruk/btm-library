@@ -841,7 +841,7 @@ function addAffiliateLinkRow(link = {}) {
   const remove = row.querySelector('.affiliate-remove-link');
 
   id.value = String(link.id || '');
-  geo.value = String(link.geo || '').toUpperCase();
+  geo.value = String(link.geo || 'GLOBAL').toUpperCase();
   label.value = String(link.label || '');
   destination.value = String(link.destination_url || '');
   geo.addEventListener('input', () => {
