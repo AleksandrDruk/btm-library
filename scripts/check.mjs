@@ -48,6 +48,7 @@ if (
 }
 
 const browserCode = await readFile('app.js', 'utf8');
+const indexHtml = await readFile('index.html', 'utf8');
 const forbiddenPatterns = [
   ['innerHTML', /\.innerHTML\s*=/],
   ['document.write', /document\.write\s*\(/],
@@ -60,6 +61,13 @@ for (const [name, pattern] of forbiddenPatterns) {
   if (pattern.test(browserCode)) {
     throw new Error(`Forbidden browser pattern found: ${name}`);
   }
+}
+
+if (
+  !browserCode.includes("String(link.geo || 'GLOBAL')")
+  || !indexHtml.includes('placeholder="GLOBAL"')
+) {
+  throw new Error('New affiliate links must default to GLOBAL.');
 }
 
 process.stdout.write('Static checks passed.\n');

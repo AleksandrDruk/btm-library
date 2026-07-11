@@ -62,22 +62,16 @@ Affiliate flow:
       "tags": ["vegas hero"],
       "links": [
         {
-          "id": "it",
-          "geo": "IT",
+          "id": "global",
+          "geo": "GLOBAL",
           "label": "",
           "destination_url": "https://tracking.example/click?campaign=example"
         },
         {
-          "id": "it-backup",
+          "id": "it",
           "geo": "IT",
-          "label": "Backup",
+          "label": "IT campaign",
           "destination_url": "https://tracking.example/click?campaign=example-backup"
-        },
-        {
-          "id": "fr",
-          "geo": "FR",
-          "label": "",
-          "destination_url": "https://tracking.example/click?campaign=example-fr"
         }
       ]
     }
@@ -85,7 +79,7 @@ Affiliate flow:
 }
 ```
 
-`destination_url` сохраняется без перестройки и сортировки query-параметров. Разрешены только полные HTTP(S) URL без userinfo и неэкранированных пробелов. Brand и link `id` стабильны, `version` бренда увеличивается при изменении его метаданных или ссылок, а нормализованное имя бренда уникально. Каждая ссылка имеет одно GEO; одинаковый URL в разных GEO хранится отдельными ссылками и не объединяется автоматически.
+`destination_url` сохраняется без перестройки и сортировки query-параметров. Разрешены только полные HTTP(S) URL без userinfo и неэкранированных пробелов. Brand и link `id` стабильны, `version` бренда увеличивается при изменении его метаданных или ссылок, а нормализованное имя бренда уникально. Новая и импортируемая ссылка по умолчанию получает `GLOBAL`; GEO-префикс назначается только явно, когда географическое ограничение подтверждено. Одинаковый URL в разных явно заданных GEO хранится отдельными ссылками и не объединяется автоматически.
 
 Affiliate-карточка использует только `logo_id` из публичной logo-library. Произвольные favicon/preview с tracking-доменов не загружаются. Если логотип отсутствует, UI показывает инициалы бренда.
 
