@@ -53,7 +53,7 @@ function catalogStateStub(namespace) {
   return namespace.get(namespace.idFromName('approved-affiliate-catalog'));
 }
 
-export async function getApprovedAffiliateCommit(namespace, initialSha) {
+export async function getApprovedAffiliateCommit(namespace, initialSha, previousSha = '') {
   const fallback = normalizeSha(initialSha);
   const response = await catalogStateStub(namespace).fetch(
     'https://btm-affiliate-state.internal/approved-sha',
@@ -62,7 +62,15 @@ export async function getApprovedAffiliateCommit(namespace, initialSha) {
   if (response.status !== 200) {
     throw new Error('Affiliate catalog state returned an unexpected response.');
   }
-  return normalizeSha(await response.text());
+  const stored = normalizeSha(await response.text());
+  if (previousSha) {
+    const previous = normalizeSha(previousSha);
+    if (stored === previous && fallback !== previous) {
+      await setApprovedAffiliateCommit(namespace, fallback);
+      return fallback;
+    }
+  }
+  return stored;
 }
 
 export async function setApprovedAffiliateCommit(namespace, sha) {

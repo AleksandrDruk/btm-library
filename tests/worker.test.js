@@ -8,10 +8,25 @@ import {
   createSessionToken,
   deriveAffiliateSiteSecret,
 } from '../lib/crypto.js';
-import { buildAffiliateCatalogUpdate, serializeAffiliateCatalog } from '../lib/affiliate-catalog.js';
+import {
+  buildAffiliateCatalogUpdate,
+  serializeAffiliateCatalog,
+  serializeAffiliateCatalogSnapshot,
+} from '../lib/affiliate-catalog.js';
 import { handleRequest } from '../worker/index.js';
 
 const APPROVED_SHA = '1111111111111111111111111111111111111111';
+
+const emptyAffiliateCatalog = () => ({ schema_version: 2, catalog_version: 1, items: [] });
+
+function affiliateLink(geo, destinationUrl, options = {}) {
+  return {
+    id: options.id || '',
+    geo,
+    label: options.label || '',
+    destination_url: destinationUrl,
+  };
+}
 
 async function environment() {
   return {
@@ -215,7 +230,7 @@ test('affiliate proposal endpoint creates a PR without writing to the base branc
     AFFILIATE_GITHUB_BASE_BRANCH: 'main',
   });
   const sessionToken = await createSessionToken(env.SESSION_SECRET, 300, env.SESSION_VERSION);
-  const catalog = { schema_version: 1, catalog_version: 1, items: [] };
+  const catalog = emptyAffiliateCatalog();
   let treeBody = null;
   let refBody = null;
 
@@ -266,7 +281,8 @@ test('affiliate proposal endpoint creates a PR without writing to the base branc
         mode: 'new',
         asset_id: '',
         brand: 'Vegas Hero',
-        destination_url: 'https://tracking.example.test/click?campaign=42',
+        logo_id: '',
+        links: [affiliateLink('IT', 'https://tracking.example.test/click?campaign=42')],
         tags: 'vegas hero',
       }],
     }),
@@ -298,10 +314,12 @@ test('affiliate approval gate publishes only an exact reviewed commit with both 
   const headSha = '2222222222222222222222222222222222222222';
   const mergedSha = '3333333333333333333333333333333333333333';
   const baseCatalog = { schema_version: 1, catalog_version: 1, items: [] };
-  const candidateCatalog = buildAffiliateCatalogUpdate(baseCatalog, [{
+  const candidateCatalog = buildAffiliateCatalogUpdate(emptyAffiliateCatalog(), [{
     mode: 'new',
+    asset_id: '',
     brand: 'Vegas Hero',
-    destination_url: 'https://tracking.example.test/click?campaign=42',
+    logo_id: '',
+    links: [affiliateLink('IT', 'https://tracking.example.test/click?campaign=42')],
     tags: 'vegas hero',
   }]).catalog;
   const pull = {
@@ -382,7 +400,7 @@ test('affiliate approval gate publishes only an exact reviewed commit with both 
     if (pathname.endsWith('/contents/catalog.json')) {
       const ref = parsed.searchParams.get('ref');
       const catalog = ref === APPROVED_SHA ? baseCatalog : candidateCatalog;
-      return Response.json({ content: Buffer.from(serializeAffiliateCatalog(catalog)).toString('base64') });
+      return Response.json({ content: Buffer.from(serializeAffiliateCatalogSnapshot(catalog)).toString('base64') });
     }
     if (pathname.endsWith('/pulls/14/merge') && options.method === 'PUT') {
       assert.deepEqual(JSON.parse(options.body), {
@@ -556,14 +574,20 @@ test('serves the private affiliate catalog to a correctly signed WordPress reque
     AFFILIATE_GITHUB_BASE_BRANCH: 'main',
   });
   const catalog = {
-    schema_version: 1,
+    schema_version: 2,
     catalog_version: 3,
     items: [{
       id: 'vegas-hero',
       brand: 'Vegas Hero',
-      destination_url: 'https://tracking.example.test/click?campaign=42',
+      logo_id: '',
       version: 1,
       tags: ['vegas hero'],
+      links: [{
+        id: 'it',
+        geo: 'IT',
+        label: '',
+        destination_url: 'https://tracking.example.test/click?campaign=42',
+      }],
     }],
   };
   const siteId = 'example.test';
