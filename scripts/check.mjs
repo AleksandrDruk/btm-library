@@ -70,4 +70,22 @@ if (
   throw new Error('New affiliate links must default to GLOBAL.');
 }
 
+if (
+  !browserCode.includes('setAffiliateFormOpen(false)')
+  || !indexHtml.includes('id="affiliate-create-button"')
+  || !indexHtml.includes('id="affiliate-form" class="affiliate-form" aria-labelledby="affiliate-form-title" hidden')
+) {
+  throw new Error('Affiliate catalog must remain the primary view with an explicit form opener.');
+}
+
+if (
+  !browserCode.includes('const AFFILIATE_PAGE_SIZE = 25')
+  || !browserCode.includes('affiliateForm.checkValidity()')
+  || !indexHtml.includes('id="affiliate-catalog-status"')
+  || !indexHtml.includes('id="affiliate-pagination"')
+  || !indexHtml.includes('id="affiliate-delete-button"')
+) {
+  throw new Error('Affiliate catalog UX and validation contract is incomplete.');
+}
+
 process.stdout.write('Static checks passed.\n');
