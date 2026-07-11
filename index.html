@@ -21,7 +21,7 @@
         <p class="lede">Единая защищённая точка управления библиотеками Brand Tables Manager.</p>
       </div>
       <div class="catalog-summary" aria-live="polite">
-        <span>Логотипы</span>
+        <span id="catalog-summary-label">Логотипы</span>
         <strong id="catalog-summary">Загрузка…</strong>
       </div>
     </header>
@@ -146,7 +146,7 @@
         <div>
           <button id="affiliate-back-button" class="back-button" type="button">← Все библиотеки</button>
           <h2 id="affiliate-title">Affiliate Links</h2>
-          <p>Один бренд может содержать несколько независимых ссылок для разных GEO.</p>
+          <p>Один бренд может содержать несколько ссылок. По умолчанию они GLOBAL; GEO задаётся только явно.</p>
         </div>
         <button id="affiliate-logout-button" class="button button-secondary" type="button">Выйти</button>
       </div>
@@ -154,22 +154,59 @@
       <section class="affiliate-proposals" aria-labelledby="affiliate-proposals-title">
         <div class="subsection-heading">
           <div>
-            <h3 id="affiliate-proposals-title">Ожидающие Pull Requests</h3>
-            <p>Сначала дождитесь двух зелёных проверок, затем откройте PR и отправьте review <strong>Approve</strong>. Только после этого здесь станет доступна публикация.</p>
+            <div class="affiliate-proposals-title-row">
+              <h3 id="affiliate-proposals-title">Публикация изменений</h3>
+              <span id="affiliate-proposals-count" class="count-badge" hidden></span>
+            </div>
+            <p>Публикация доступна после проверок каталога и кода, а также review <strong>Approve</strong>.</p>
           </div>
-          <button id="affiliate-proposals-refresh" class="button button-secondary" type="button">Обновить статусы</button>
+          <button id="affiliate-proposals-refresh" class="button button-secondary" type="button">Проверить статусы</button>
         </div>
         <p id="affiliate-proposals-status" class="status" role="status" aria-live="polite"></p>
         <div id="affiliate-proposal-items" class="affiliate-proposal-items"></div>
         <p id="affiliate-proposals-empty" class="empty-inline">Открытых предложений нет.</p>
       </section>
 
-      <div class="affiliate-layout">
-        <form id="affiliate-form" class="affiliate-form" novalidate>
+      <div id="affiliate-layout" class="affiliate-layout">
+        <section class="affiliate-catalog" aria-labelledby="affiliate-catalog-title">
+          <div class="subsection-heading affiliate-catalog-heading">
+            <div>
+              <h3 id="affiliate-catalog-title">Каталог ссылок</h3>
+              <p id="affiliate-summary" aria-live="polite">Каталог ещё не загружен.</p>
+            </div>
+            <div class="affiliate-catalog-controls">
+              <label class="catalog-filter">
+                <span>Поиск</span>
+                <input id="affiliate-filter" type="search" placeholder="Название, домен, GEO или тег" autocomplete="off">
+              </label>
+              <button id="affiliate-filter-reset" class="button button-secondary" type="button" hidden>Сбросить</button>
+              <button id="affiliate-refresh-button" class="button button-secondary" type="button">Обновить каталог</button>
+              <button id="affiliate-create-button" class="button button-primary" type="button">Добавить бренд</button>
+            </div>
+          </div>
+
+          <p id="affiliate-catalog-status" class="status affiliate-catalog-status" role="status" aria-live="polite"></p>
+          <div id="affiliate-loading" class="empty-inline" role="status">Загрузите приватный каталог.</div>
+          <div id="affiliate-items" class="affiliate-items" role="list"></div>
+          <div id="affiliate-items-empty" class="affiliate-empty-state" hidden>
+            <strong id="affiliate-empty-title">Ничего не найдено</strong>
+            <p id="affiliate-empty-copy">Попробуйте изменить запрос.</p>
+            <button id="affiliate-empty-action" class="button button-secondary" type="button">Сбросить поиск</button>
+          </div>
+          <nav id="affiliate-pagination" class="affiliate-pagination" aria-label="Страницы каталога" hidden>
+            <span id="affiliate-page-summary" role="status" aria-live="polite"></span>
+            <div class="affiliate-pagination-actions">
+              <button id="affiliate-page-previous" class="button button-secondary" type="button">Назад</button>
+              <button id="affiliate-page-next" class="button button-secondary" type="button">Далее</button>
+            </div>
+          </nav>
+        </section>
+
+        <form id="affiliate-form" class="affiliate-form" aria-labelledby="affiliate-form-title" hidden>
           <div class="subsection-heading">
             <div>
               <h3 id="affiliate-form-title">Новый бренд</h3>
-              <p>URL сохраняются точно с tracking-параметрами. WordPress копирует только явно выбранную ссылку.</p>
+              <p>URL сохраняется вместе с tracking-параметрами и копируется в WordPress только после явного выбора.</p>
             </div>
           </div>
 
@@ -182,14 +219,14 @@
             <select id="affiliate-logo">
               <option value="">Без логотипа</option>
             </select>
-            <p class="field-hint">Используется только изображение из публичной BTM logo-library.</p>
+            <p class="field-hint">Только изображение из публичной BTM logo-library.</p>
           </div>
 
           <fieldset class="affiliate-links-fieldset">
             <legend>Affiliate-ссылки</legend>
             <div id="affiliate-links-editor" class="affiliate-links-editor"></div>
             <button id="affiliate-add-link" class="button button-secondary" type="button">Добавить ссылку</button>
-            <p class="field-hint">Новая ссылка по умолчанию GLOBAL. Укажите IT, FR или другой GEO только когда ссылка действительно геоспецифична.</p>
+            <p class="field-hint">По умолчанию GLOBAL. Укажите GEO только для подтверждённой геоспецифичной ссылки.</p>
           </fieldset>
 
           <div class="field">
@@ -199,30 +236,17 @@
 
           <div class="form-actions">
             <button id="affiliate-submit-button" class="button button-primary" type="submit">Создать PR</button>
-            <button id="affiliate-cancel-button" class="button button-secondary" type="button" hidden>Отменить редактирование</button>
+            <button id="affiliate-cancel-button" class="button button-secondary" type="button">Закрыть</button>
+          </div>
+          <div id="affiliate-danger-zone" class="affiliate-danger-zone" hidden>
+            <div>
+              <strong>Удалить бренд</strong>
+              <p>Удаление также создаст PR и не затронет уже скопированные ссылки на сайтах.</p>
+            </div>
+            <button id="affiliate-delete-button" class="button button-link-danger" type="button">Удалить из каталога</button>
           </div>
           <p id="affiliate-form-status" class="status" role="status" aria-live="polite"></p>
         </form>
-
-        <section class="affiliate-catalog" aria-labelledby="affiliate-catalog-title">
-          <div class="subsection-heading">
-            <div>
-              <h3 id="affiliate-catalog-title">Каталог ссылок</h3>
-              <p id="affiliate-summary" aria-live="polite">Каталог ещё не загружен.</p>
-            </div>
-            <div class="affiliate-catalog-controls">
-              <label class="catalog-filter">
-                <span>Найти бренд</span>
-                <input id="affiliate-filter" type="search" placeholder="Бренд, домен или тег" autocomplete="off">
-              </label>
-              <button id="affiliate-refresh-button" class="button button-secondary" type="button">Обновить</button>
-            </div>
-          </div>
-
-          <div id="affiliate-loading" class="empty-inline" role="status">Загрузите приватный каталог.</div>
-          <div id="affiliate-items" class="affiliate-items"></div>
-          <p id="affiliate-items-empty" class="empty-inline" hidden>По этому запросу ничего не найдено.</p>
-        </section>
       </div>
 
       <div id="affiliate-success-panel" class="notice notice-success" hidden>
@@ -309,7 +333,7 @@
   </template>
 
   <template id="affiliate-item-template">
-    <article class="affiliate-item">
+    <article class="affiliate-item" role="listitem">
       <div class="affiliate-item-preview-wrap">
         <img class="affiliate-item-preview" alt="" width="72" height="52" loading="lazy" decoding="async" referrerpolicy="no-referrer">
         <span class="affiliate-item-preview-fallback" aria-hidden="true"></span>
@@ -317,11 +341,13 @@
       <div class="affiliate-item-copy">
         <strong class="affiliate-item-name"></strong>
         <span class="affiliate-item-meta"></span>
-        <div class="affiliate-item-links"></div>
       </div>
       <div class="affiliate-item-actions">
         <button class="button button-secondary edit-affiliate" type="button">Изменить</button>
-        <button class="button button-danger delete-affiliate" type="button">Удалить</button>
+      </div>
+      <div class="affiliate-item-links">
+        <div class="affiliate-item-link-list"></div>
+        <button class="affiliate-links-toggle" type="button" hidden></button>
       </div>
     </article>
   </template>
@@ -329,19 +355,19 @@
   <template id="affiliate-link-editor-template">
     <div class="affiliate-link-editor-row">
       <input class="affiliate-link-id" type="hidden">
-      <div class="field">
-        <label>GEO</label>
-        <input class="affiliate-link-geo" type="text" maxlength="6" autocomplete="off" spellcheck="false" placeholder="GLOBAL" required>
+      <div class="field affiliate-link-geo-field">
+        <label class="affiliate-link-geo-label">GEO</label>
+        <input class="affiliate-link-geo" type="text" minlength="2" maxlength="6" pattern="(?:[A-Z]{2}|GLOBAL)" title="GLOBAL или код GEO из двух латинских букв, например IT" autocomplete="off" spellcheck="false" placeholder="GLOBAL" required>
       </div>
-      <div class="field">
-        <label>Название варианта</label>
-        <input class="affiliate-link-label" type="text" maxlength="60" autocomplete="off" placeholder="Необязательно">
+      <div class="field affiliate-link-label-field">
+        <label class="affiliate-link-variant-label">Вариант</label>
+        <input class="affiliate-link-label" type="text" maxlength="60" autocomplete="off" placeholder="Например, Backup">
       </div>
       <div class="field affiliate-link-url-field">
-        <label>Конечный affiliate URL</label>
+        <label class="affiliate-link-url-label">Конечный affiliate URL</label>
         <input class="affiliate-link-url" type="url" maxlength="4096" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://tracking.example/path?campaign=…" required>
       </div>
-      <button class="button button-danger affiliate-remove-link" type="button">Удалить</button>
+      <button class="button button-link-danger affiliate-remove-link" type="button">Удалить ссылку</button>
     </div>
   </template>
 
@@ -349,8 +375,7 @@
     <article class="affiliate-proposal">
       <div class="affiliate-proposal-copy">
         <strong class="affiliate-proposal-title"></strong>
-        <span class="affiliate-proposal-meta"></span>
-        <span class="affiliate-proposal-checks"></span>
+        <div class="affiliate-proposal-statuses"></div>
         <p class="affiliate-proposal-message"></p>
       </div>
       <div class="affiliate-proposal-actions">
