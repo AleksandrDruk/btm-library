@@ -42,6 +42,18 @@ test('approved catalog state fails closed to the configured bootstrap SHA', asyn
   assert.equal(await getApprovedAffiliateCommit(namespace, INITIAL_SHA), NEXT_SHA);
 });
 
+test('approved catalog state performs only an exact configured maintenance migration', async () => {
+  const state = new AffiliateCatalogState({ storage: storageFixture() });
+  const namespace = stateNamespace(state);
+
+  await setApprovedAffiliateCommit(namespace, INITIAL_SHA);
+  assert.equal(
+    await getApprovedAffiliateCommit(namespace, NEXT_SHA, INITIAL_SHA),
+    NEXT_SHA,
+  );
+  assert.equal(await getApprovedAffiliateCommit(namespace, INITIAL_SHA), NEXT_SHA);
+});
+
 test('approved catalog state rejects malformed commit identifiers', async () => {
   const state = new AffiliateCatalogState({ storage: storageFixture() });
   const namespace = stateNamespace(state);

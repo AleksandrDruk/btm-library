@@ -3,7 +3,7 @@
 Публичная GitHub Pages оболочка и защищённый менеджер двух библиотек Brand Tables Manager:
 
 1. публичный read-only каталог логотипов;
-2. приватный каталог конечных affiliate URL — одна активная ссылка на бренд для всех сайтов и GEO.
+2. приватный каталог конечных affiliate URL — один бренд с независимыми ссылками для конкретных GEO.
 
 После входа менеджер выбирает модуль на hub-экране. Оба модуля подготавливают изменения только через GitHub Pull Request; прямой записи в `main` нет.
 
@@ -51,21 +51,43 @@ Affiliate flow:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "catalog_version": 1,
   "items": [
     {
       "id": "vegas-hero",
       "brand": "Vegas Hero",
-      "destination_url": "https://tracking.example/click?campaign=example",
+      "logo_id": "vegas-hero-primary",
       "version": 1,
-      "tags": ["vegas hero"]
+      "tags": ["vegas hero"],
+      "links": [
+        {
+          "id": "it",
+          "geo": "IT",
+          "label": "",
+          "destination_url": "https://tracking.example/click?campaign=example"
+        },
+        {
+          "id": "it-backup",
+          "geo": "IT",
+          "label": "Backup",
+          "destination_url": "https://tracking.example/click?campaign=example-backup"
+        },
+        {
+          "id": "fr",
+          "geo": "FR",
+          "label": "",
+          "destination_url": "https://tracking.example/click?campaign=example-fr"
+        }
+      ]
     }
   ]
 }
 ```
 
-`destination_url` сохраняется без перестройки и сортировки query-параметров. Разрешены только полные HTTP(S) URL без userinfo и неэкранированных пробелов. `id` стабилен, `version` увеличивается при редактировании, а нормализованное имя бренда уникально.
+`destination_url` сохраняется без перестройки и сортировки query-параметров. Разрешены только полные HTTP(S) URL без userinfo и неэкранированных пробелов. Brand и link `id` стабильны, `version` бренда увеличивается при изменении его метаданных или ссылок, а нормализованное имя бренда уникально. Каждая ссылка имеет одно GEO; одинаковый URL в разных GEO хранится отдельными ссылками и не объединяется автоматически.
+
+Affiliate-карточка использует только `logo_id` из публичной logo-library. Произвольные favicon/preview с tracking-доменов не загружаются. Если логотип отсутствует, UI показывает инициалы бренда.
 
 Pretty-printed private `catalog.json` ограничен 900 КиБ: Worker отклонит предложение раньше, чем файл пересечёт 1 МиБ и перестанет читаться через обычный GitHub Contents API response.
 
@@ -181,7 +203,7 @@ npm run session-secret
 npm run session-secret
 ```
 
-Первый случайный secret используйте как `SESSION_SECRET`, второй — как `AFFILIATE_READ_MASTER_SECRET`; они не должны совпадать. Генератор пароля использует PBKDF2-SHA-256 с 100 000 итераций — это максимальное значение, которое принимает production runtime Cloudflare Workers. Вход и каталоги дополнительно защищены четырьмя независимыми rate limiter bindings; replay signed read requests блокирует Durable Object `AFFILIATE_NONCE_STORE`, а approved affiliate SHA хранит `AFFILIATE_CATALOG_STATE` с безопасным bootstrap fallback `AFFILIATE_APPROVED_SHA`.
+Первый случайный secret используйте как `SESSION_SECRET`, второй — как `AFFILIATE_READ_MASTER_SECRET`; они не должны совпадать. Генератор пароля использует PBKDF2-SHA-256 с 100 000 итераций — это максимальное значение, которое принимает production runtime Cloudflare Workers. Вход и каталоги дополнительно защищены четырьмя независимыми rate limiter bindings; replay signed read requests блокирует Durable Object `AFFILIATE_NONCE_STORE`, а approved affiliate SHA хранит `AFFILIATE_CATALOG_STATE` с безопасным bootstrap fallback `AFFILIATE_APPROVED_SHA`. Опциональный `AFFILIATE_PREVIOUS_APPROVED_SHA` разрешает только один точный maintenance-переход сохранённого SHA на новый bootstrap SHA; после подтверждённого перехода переменную нужно удалить отдельным deploy.
 
 Создайте локальный `secrets.production.json`; он игнорируется Git и после деплоя должен быть удалён:
 

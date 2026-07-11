@@ -686,6 +686,45 @@ h3 {
   margin-top: 16px;
 }
 
+.affiliate-links-fieldset {
+  min-width: 0;
+  margin: 18px 0 0;
+  padding: 14px;
+  border: 1px solid #c3c4c7;
+  border-radius: 6px;
+}
+
+.affiliate-links-fieldset legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.affiliate-links-editor {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.affiliate-link-editor-row {
+  display: grid;
+  grid-template-columns: 90px minmax(120px, .7fr) minmax(220px, 1.5fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dcdcde;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.affiliate-link-editor-row .field,
+.affiliate-link-editor-row .field + .field {
+  margin: 0;
+}
+
+.affiliate-link-editor-row .affiliate-remove-link {
+  margin-bottom: 1px;
+}
+
 .affiliate-form .form-actions {
   margin-top: 20px;
   flex-wrap: wrap;
@@ -712,7 +751,7 @@ h3 {
 
 .affiliate-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
   padding: 14px;
@@ -725,10 +764,32 @@ h3 {
   background: #f4f5ff;
 }
 
+.affiliate-item-preview-wrap {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  min-height: 52px;
+  overflow: hidden;
+  border: 1px solid #dcdcde;
+  border-radius: 6px;
+  background: #f6f7f7;
+}
+
+.affiliate-item-preview {
+  max-width: 100%;
+  max-height: 52px;
+  object-fit: contain;
+}
+
+.affiliate-item-preview-fallback {
+  color: #50575e;
+  font-size: 16px;
+  font-weight: 700;
+}
+
 .affiliate-item-copy,
 .affiliate-item-name,
-.affiliate-item-meta,
-.affiliate-item-url {
+.affiliate-item-meta {
   display: block;
   min-width: 0;
 }
@@ -739,9 +800,34 @@ h3 {
   font-size: 12px;
 }
 
-.affiliate-item-url {
-  max-width: 100%;
+.affiliate-item-links {
+  display: grid;
+  gap: 6px;
   margin-top: 8px;
+}
+
+.affiliate-link-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.affiliate-link-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e7f0ff;
+  color: #174ea6;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.affiliate-link-summary code {
+  min-width: 0;
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -867,6 +953,37 @@ code {
 
   .affiliate-catalog-controls .catalog-filter {
     min-width: 0;
+  }
+
+  .affiliate-link-editor-row {
+    grid-template-columns: 1fr;
+  }
+
+  .affiliate-item {
+    grid-template-columns: 1fr;
+  }
+
+  .affiliate-items {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .affiliate-item-preview-wrap {
+    width: 100%;
+    min-height: 56px;
+  }
+
+  .affiliate-link-summary {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .affiliate-link-badge {
+    justify-self: start;
+  }
+
+  .affiliate-item-actions {
+    grid-column: 1 / -1;
   }
 }
 

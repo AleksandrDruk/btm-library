@@ -99,7 +99,7 @@ test('private affiliate snapshot requests a read-only installation token', async
     AFFILIATE_GITHUB_REPO: 'btm-affiliate-library',
     AFFILIATE_GITHUB_BASE_BRANCH: 'main',
   };
-  const catalog = { schema_version: 1, catalog_version: 1, items: [] };
+  const catalog = { schema_version: 2, catalog_version: 1, items: [] };
 
   const fetchMock = async (url, options = {}) => {
     const parsed = new URL(url);

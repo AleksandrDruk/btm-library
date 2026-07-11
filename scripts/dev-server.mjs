@@ -13,22 +13,42 @@ const port = Number(process.env.PORT || 4173);
 const testPassword = 'test-only-password-1234567890';
 const testToken = 'test-session-token-abcdefghijklmnopqrstuvwxyz';
 let affiliateCatalog = {
-  schema_version: 1,
+  schema_version: 2,
   catalog_version: 3,
   items: [
     {
       id: 'vegas-hero',
       brand: 'Vegas Hero',
-      destination_url: 'https://tracking.example.test/vegas-hero?campaign=demo',
+      logo_id: '',
       version: 1,
       tags: ['vegas hero', 'demo'],
+      links: [
+        {
+          id: 'it',
+          geo: 'IT',
+          label: '',
+          destination_url: 'https://tracking.example.test/vegas-hero?campaign=demo-it',
+        },
+        {
+          id: 'fr',
+          geo: 'FR',
+          label: '',
+          destination_url: 'https://tracking.example.test/vegas-hero?campaign=demo-fr',
+        },
+      ],
     },
     {
       id: 'northern-star',
       brand: 'Northern Star',
-      destination_url: 'https://affiliate.example.test/click/northern-star?source=btm',
+      logo_id: '',
       version: 2,
       tags: ['northern star'],
+      links: [{
+        id: 'global',
+        geo: 'GLOBAL',
+        label: '',
+        destination_url: 'https://affiliate.example.test/click/northern-star?source=btm',
+      }],
     },
   ],
 };

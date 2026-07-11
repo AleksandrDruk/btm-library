@@ -12,7 +12,8 @@ import {
   AffiliateCatalogError,
   buildAffiliateCatalogUpdate,
   serializeAffiliateCatalog,
-  validateAffiliateCatalog,
+  serializeAffiliateCatalogSnapshot,
+  validateAffiliateCatalogSnapshot,
   validateAffiliateCatalogTransition,
 } from '../lib/affiliate-catalog.js';
 import { ImageValidationError, inspectImage, MAX_IMAGE_BYTES } from '../lib/image.js';
@@ -337,18 +338,26 @@ function requireAffiliateRepository(env) {
 async function approvedAffiliateCommit(env) {
   requireAffiliateRepository(env);
   try {
-    return await getApprovedAffiliateCommit(env.AFFILIATE_CATALOG_STATE, env.AFFILIATE_APPROVED_SHA);
+    return await getApprovedAffiliateCommit(
+      env.AFFILIATE_CATALOG_STATE,
+      env.AFFILIATE_APPROVED_SHA,
+      env.AFFILIATE_PREVIOUS_APPROVED_SHA || '',
+    );
   } catch {
     throw new ApiError(503, 'affiliate_approval_state_unavailable', 'Состояние опубликованного каталога временно недоступно.');
   }
 }
 
 function validatedAffiliateSnapshot(snapshot) {
-  const catalog = validateAffiliateCatalog(snapshot.catalog);
-  if (serializeAffiliateCatalog(catalog) !== snapshot.catalogText) {
+  const validated = validateAffiliateCatalogSnapshot(snapshot.catalog);
+  if (serializeAffiliateCatalogSnapshot(snapshot.catalog) !== snapshot.catalogText) {
     throw new AffiliateCatalogError('catalog_not_canonical', 'Affiliate catalog должен использовать canonical формат.');
   }
-  return { snapshot, catalog };
+  return {
+    snapshot,
+    catalog: validated.catalog,
+    sourceSchemaVersion: validated.source_schema_version,
+  };
 }
 
 async function affiliateRepositorySnapshot(env, fetchImpl, access, ref = '') {

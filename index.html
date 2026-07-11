@@ -75,7 +75,7 @@
           <span class="app-tile-icon" aria-hidden="true">↗</span>
           <span class="app-tile-copy">
             <strong>Affiliate Links</strong>
-            <span>Добавить, изменить или удалить общую ссылку бренда</span>
+            <span>Управлять GEO-ссылками и вариантами брендов</span>
           </span>
           <span class="app-tile-arrow" aria-hidden="true">→</span>
         </button>
@@ -146,7 +146,7 @@
         <div>
           <button id="affiliate-back-button" class="back-button" type="button">← Все библиотеки</button>
           <h2 id="affiliate-title">Affiliate Links</h2>
-          <p>Одна активная конечная ссылка на бренд для всех сайтов и GEO.</p>
+          <p>Один бренд может содержать несколько независимых ссылок для разных GEO.</p>
         </div>
         <button id="affiliate-logout-button" class="button button-secondary" type="button">Выйти</button>
       </div>
@@ -168,8 +168,8 @@
         <form id="affiliate-form" class="affiliate-form" novalidate>
           <div class="subsection-heading">
             <div>
-              <h3 id="affiliate-form-title">Новая ссылка</h3>
-              <p>URL сохраняется точно с query-параметрами. WordPress позже копирует его в существующее поле бренда.</p>
+              <h3 id="affiliate-form-title">Новый бренд</h3>
+              <p>URL сохраняются точно с tracking-параметрами. WordPress копирует только явно выбранную ссылку.</p>
             </div>
           </div>
 
@@ -178,10 +178,20 @@
             <input id="affiliate-brand" type="text" maxlength="100" autocomplete="off" required>
           </div>
           <div class="field">
-            <label for="affiliate-url">Конечный affiliate URL</label>
-            <input id="affiliate-url" type="url" maxlength="4096" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://tracking.example/path?campaign=…" required>
-            <p class="field-hint">Используйте полный HTTP(S) URL, а не внутренний <code>/go/…</code> адрес сайта.</p>
+            <label for="affiliate-logo">Логотип для превью</label>
+            <select id="affiliate-logo">
+              <option value="">Без логотипа</option>
+            </select>
+            <p class="field-hint">Используется только изображение из публичной BTM logo-library.</p>
           </div>
+
+          <fieldset class="affiliate-links-fieldset">
+            <legend>Affiliate-ссылки</legend>
+            <div id="affiliate-links-editor" class="affiliate-links-editor"></div>
+            <button id="affiliate-add-link" class="button button-secondary" type="button">Добавить ссылку</button>
+            <p class="field-hint">Каждая ссылка относится к одному GEO. Для нескольких ссылок одного GEO добавьте варианты.</p>
+          </fieldset>
+
           <div class="field">
             <label for="affiliate-tags">Теги через запятую</label>
             <input id="affiliate-tags" type="text" maxlength="500" autocomplete="off" placeholder="vegas hero, casino">
@@ -300,16 +310,39 @@
 
   <template id="affiliate-item-template">
     <article class="affiliate-item">
+      <div class="affiliate-item-preview-wrap">
+        <img class="affiliate-item-preview" alt="" width="72" height="52" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+        <span class="affiliate-item-preview-fallback" aria-hidden="true"></span>
+      </div>
       <div class="affiliate-item-copy">
         <strong class="affiliate-item-name"></strong>
         <span class="affiliate-item-meta"></span>
-        <code class="affiliate-item-url"></code>
+        <div class="affiliate-item-links"></div>
       </div>
       <div class="affiliate-item-actions">
         <button class="button button-secondary edit-affiliate" type="button">Изменить</button>
         <button class="button button-danger delete-affiliate" type="button">Удалить</button>
       </div>
     </article>
+  </template>
+
+  <template id="affiliate-link-editor-template">
+    <div class="affiliate-link-editor-row">
+      <input class="affiliate-link-id" type="hidden">
+      <div class="field">
+        <label>GEO</label>
+        <input class="affiliate-link-geo" type="text" maxlength="6" autocomplete="off" spellcheck="false" placeholder="IT" required>
+      </div>
+      <div class="field">
+        <label>Название варианта</label>
+        <input class="affiliate-link-label" type="text" maxlength="60" autocomplete="off" placeholder="Необязательно">
+      </div>
+      <div class="field affiliate-link-url-field">
+        <label>Конечный affiliate URL</label>
+        <input class="affiliate-link-url" type="url" maxlength="4096" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://tracking.example/path?campaign=…" required>
+      </div>
+      <button class="button button-danger affiliate-remove-link" type="button">Удалить</button>
+    </div>
   </template>
 
   <template id="affiliate-proposal-template">
