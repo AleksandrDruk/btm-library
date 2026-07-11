@@ -5,12 +5,33 @@ import { lstat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import process from 'node:process';
+import { buildAffiliateCatalogUpdate } from '../lib/affiliate-catalog.js';
 
 const root = process.cwd();
 const host = '127.0.0.1';
 const port = Number(process.env.PORT || 4173);
 const testPassword = 'test-only-password-1234567890';
 const testToken = 'test-session-token-abcdefghijklmnopqrstuvwxyz';
+const affiliateCatalog = {
+  schema_version: 1,
+  catalog_version: 3,
+  items: [
+    {
+      id: 'vegas-hero',
+      brand: 'Vegas Hero',
+      destination_url: 'https://tracking.example.test/vegas-hero?campaign=demo',
+      version: 1,
+      tags: ['vegas hero', 'demo'],
+    },
+    {
+      id: 'northern-star',
+      brand: 'Northern Star',
+      destination_url: 'https://affiliate.example.test/click/northern-star?source=btm',
+      version: 2,
+      tags: ['northern star'],
+    },
+  ],
+};
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -69,6 +90,34 @@ const server = createServer(async (request, response) => {
       json(response, 201, {
         ok: true,
         pull_request: { number: 999, url: 'https://github.com/AleksandrDruk/btm-library/pull/999' },
+      });
+      return;
+    }
+    if (url.pathname === '/api/affiliate-catalog' && request.method === 'GET') {
+      if (request.headers.authorization !== `Bearer ${testToken}`) {
+        json(response, 401, { ok: false, message: 'Сессия отсутствует или истекла.' });
+        return;
+      }
+      json(response, 200, { ok: true, catalog: affiliateCatalog });
+      return;
+    }
+    if (url.pathname === '/api/affiliate-catalog/propose' && request.method === 'POST') {
+      if (request.headers.authorization !== `Bearer ${testToken}`) {
+        json(response, 401, { ok: false, message: 'Сессия отсутствует или истекла.' });
+        return;
+      }
+      const payload = JSON.parse(await bodyText(request, 128 * 1024));
+      if (payload.catalog_version !== affiliateCatalog.catalog_version) {
+        json(response, 409, { ok: false, message: 'Каталог изменился. Обновите список.' });
+        return;
+      }
+      buildAffiliateCatalogUpdate(affiliateCatalog, payload.operations);
+      json(response, 201, {
+        ok: true,
+        pull_request: {
+          number: 999,
+          url: 'https://github.com/AleksandrDruk/btm-affiliate-library/pull/999',
+        },
       });
       return;
     }

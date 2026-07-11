@@ -1,0 +1,29 @@
+name: Code checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  code-checks:
+    name: code-checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '20'
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run static checks
+        run: npm run check

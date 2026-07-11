@@ -211,6 +211,112 @@ h3 {
   color: #b32d2e;
 }
 
+.panel-actions,
+.form-actions,
+.affiliate-catalog-controls,
+.affiliate-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.back-button {
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #3858e9;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.back-button:focus-visible,
+.app-tile:focus-visible {
+  outline: 2px solid #3858e9;
+  outline-offset: 3px;
+}
+
+.hub-panel {
+  padding: 30px;
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.app-tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 170px;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid #c3c4c7;
+  border-radius: 18px;
+  background: #fff;
+  color: #1d2327;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.app-tile:hover {
+  border-color: #8c8f94;
+  box-shadow: 0 10px 28px rgba(29, 35, 39, .1);
+  transform: translateY(-2px);
+}
+
+.app-tile-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 16px;
+  color: #fff;
+  font-size: 31px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.app-tile-logo .app-tile-icon {
+  background: linear-gradient(145deg, #3858e9, #7047eb);
+}
+
+.app-tile-link .app-tile-icon {
+  background: linear-gradient(145deg, #008a20, #00a89d);
+}
+
+.app-tile-copy,
+.app-tile-copy strong,
+.app-tile-copy span {
+  display: block;
+}
+
+.app-tile-copy strong {
+  margin-bottom: 7px;
+  font-size: 21px;
+}
+
+.app-tile-copy span {
+  color: #646970;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.app-tile-arrow {
+  color: #646970;
+  font-size: 24px;
+}
+
+.hub-note {
+  margin: 22px 0 0;
+  color: #646970;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .drop-zone {
   display: flex;
   min-height: 220px;
@@ -502,6 +608,90 @@ h3 {
   border-left: 4px solid #00a32a;
 }
 
+.affiliate-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.affiliate-form,
+.affiliate-catalog {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #dcdcde;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.affiliate-form {
+  background: #f9f9fa;
+}
+
+.affiliate-form .field + .field {
+  margin-top: 16px;
+}
+
+.affiliate-form .form-actions {
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.affiliate-form .status {
+  margin-top: 14px;
+}
+
+.affiliate-catalog-controls {
+  align-items: flex-end;
+}
+
+.affiliate-catalog-controls .catalog-filter {
+  min-width: 220px;
+}
+
+.affiliate-items {
+  display: grid;
+  gap: 10px;
+  max-height: 620px;
+  overflow: auto;
+}
+
+.affiliate-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #dcdcde;
+  border-radius: 7px;
+}
+
+.affiliate-item.is-editing {
+  border-color: #3858e9;
+  background: #f4f5ff;
+}
+
+.affiliate-item-copy,
+.affiliate-item-name,
+.affiliate-item-meta,
+.affiliate-item-url {
+  display: block;
+  min-width: 0;
+}
+
+.affiliate-item-meta {
+  margin-top: 4px;
+  color: #646970;
+  font-size: 12px;
+}
+
+.affiliate-item-url {
+  max-width: 100%;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 footer {
   color: #646970;
   font-size: 13px;
@@ -530,7 +720,8 @@ code {
   .panel-heading,
   .submit-bar,
   .item-actions,
-  .subsection-heading {
+  .subsection-heading,
+  .affiliate-catalog-controls {
     align-items: stretch;
     flex-direction: column;
   }
@@ -550,6 +741,22 @@ code {
 
   .item-fields {
     grid-template-columns: 1fr;
+  }
+
+  .app-grid,
+  .affiliate-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .app-tile {
+    min-height: 140px;
+    padding: 18px;
+  }
+
+  .app-tile-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
   }
 
   .catalog-filter {
@@ -581,8 +788,22 @@ code {
   }
 
   .submit-bar .button,
-  .item-actions .button {
+  .item-actions .button,
+  .affiliate-item-actions .button {
     width: 100%;
+  }
+
+  .affiliate-item {
+    grid-template-columns: 1fr;
+  }
+
+  .affiliate-item-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .affiliate-catalog-controls .catalog-filter {
+    min-width: 0;
   }
 }
 

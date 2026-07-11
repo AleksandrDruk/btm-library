@@ -6,7 +6,8 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' blob: data: https://raw.githubusercontent.com; connect-src 'self' https://raw.githubusercontent.com https://btm-logo-uploader-api.sashamironov25650v.workers.dev http://127.0.0.1:* http://localhost:*; frame-src https://challenges.cloudflare.com; object-src 'none'">
-  <title>BTM Logo Library</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a2b4b'/%3E%3Cpath d='M18 14h18c9 0 14 4 14 11 0 4-2 7-6 9 5 2 7 5 7 10 0 8-6 12-16 12H18V14zm11 9v8h6c4 0 6-1 6-4s-2-4-6-4h-6zm0 17v8h7c4 0 6-1 6-4s-2-4-6-4h-7z' fill='%23ffffff'/%3E%3C/svg%3E">
+  <title>BTM Library Manager</title>
   <link rel="stylesheet" href="./styles.css">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
   <script type="module" src="./app.js"></script>
@@ -16,11 +17,11 @@
     <header class="page-header">
       <div>
         <p class="eyebrow">Brand Tables Manager</p>
-        <h1>Библиотека логотипов</h1>
-        <p class="lede">Загрузите изображения, проверьте автоматически заполненные поля и отправьте одну проверяемую заявку в GitHub.</p>
+        <h1>BTM Library Manager</h1>
+        <p class="lede">Единая защищённая точка управления библиотеками Brand Tables Manager.</p>
       </div>
       <div class="catalog-summary" aria-live="polite">
-        <span>Каталог</span>
+        <span>Логотипы</span>
         <strong id="catalog-summary">Загрузка…</strong>
       </div>
     </header>
@@ -33,7 +34,7 @@
     <section id="login-panel" class="panel login-panel" aria-labelledby="login-title">
       <div class="panel-heading">
         <div>
-          <p class="step">Шаг 1</p>
+          <p class="step">Доступ</p>
           <h2 id="login-title">Вход</h2>
         </div>
         <span class="security-note">Сессия действует 30 минут и не сохраняется в браузере</span>
@@ -51,13 +52,47 @@
       <p id="login-status" class="status" role="status" aria-live="polite"></p>
     </section>
 
+    <section id="hub-panel" class="panel hub-panel" hidden aria-labelledby="hub-title">
+      <div class="panel-heading">
+        <div>
+          <p class="step">Библиотеки</p>
+          <h2 id="hub-title">Что вы хотите сделать?</h2>
+        </div>
+        <button id="hub-logout-button" class="button button-secondary" type="button">Выйти</button>
+      </div>
+
+      <div class="app-grid">
+        <button id="open-logo-library" class="app-tile app-tile-logo" type="button">
+          <span class="app-tile-icon" aria-hidden="true">▧</span>
+          <span class="app-tile-copy">
+            <strong>Логотипы</strong>
+            <span>Загрузить, обновить или удалить изображения каталога</span>
+          </span>
+          <span class="app-tile-arrow" aria-hidden="true">→</span>
+        </button>
+
+        <button id="open-affiliate-library" class="app-tile app-tile-link" type="button">
+          <span class="app-tile-icon" aria-hidden="true">↗</span>
+          <span class="app-tile-copy">
+            <strong>Affiliate Links</strong>
+            <span>Добавить, изменить или удалить общую ссылку бренда</span>
+          </span>
+          <span class="app-tile-arrow" aria-hidden="true">→</span>
+        </button>
+      </div>
+
+      <p class="hub-note">Изменения обеих библиотек отправляются в отдельный GitHub Pull Request и не попадают в <code>main</code> автоматически.</p>
+    </section>
+
     <section id="uploader-panel" class="panel" hidden aria-labelledby="uploader-title">
       <div class="panel-heading">
         <div>
-          <p class="step">Шаг 2</p>
-          <h2 id="uploader-title">Подготовка логотипов</h2>
+          <button id="logo-back-button" class="back-button" type="button">← Все библиотеки</button>
+          <h2 id="uploader-title">Логотипы</h2>
         </div>
-        <button id="logout-button" class="button button-secondary" type="button">Выйти</button>
+        <div class="panel-actions">
+          <button id="logout-button" class="button button-secondary" type="button">Выйти</button>
+        </div>
       </div>
 
       <label id="drop-zone" class="drop-zone" for="file-input">
@@ -106,8 +141,76 @@
       </div>
     </section>
 
+    <section id="affiliate-panel" class="panel" hidden aria-labelledby="affiliate-title">
+      <div class="panel-heading">
+        <div>
+          <button id="affiliate-back-button" class="back-button" type="button">← Все библиотеки</button>
+          <h2 id="affiliate-title">Affiliate Links</h2>
+          <p>Одна активная конечная ссылка на бренд для всех сайтов и GEO.</p>
+        </div>
+        <button id="affiliate-logout-button" class="button button-secondary" type="button">Выйти</button>
+      </div>
+
+      <div class="affiliate-layout">
+        <form id="affiliate-form" class="affiliate-form" novalidate>
+          <div class="subsection-heading">
+            <div>
+              <h3 id="affiliate-form-title">Новая ссылка</h3>
+              <p>URL сохраняется точно с query-параметрами. WordPress позже копирует его в существующее поле бренда.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="affiliate-brand">Бренд</label>
+            <input id="affiliate-brand" type="text" maxlength="100" autocomplete="off" required>
+          </div>
+          <div class="field">
+            <label for="affiliate-url">Конечный affiliate URL</label>
+            <input id="affiliate-url" type="url" maxlength="4096" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://tracking.example/path?campaign=…" required>
+            <p class="field-hint">Используйте полный HTTP(S) URL, а не внутренний <code>/go/…</code> адрес сайта.</p>
+          </div>
+          <div class="field">
+            <label for="affiliate-tags">Теги через запятую</label>
+            <input id="affiliate-tags" type="text" maxlength="500" autocomplete="off" placeholder="vegas hero, casino">
+          </div>
+
+          <div class="form-actions">
+            <button id="affiliate-submit-button" class="button button-primary" type="submit">Создать PR</button>
+            <button id="affiliate-cancel-button" class="button button-secondary" type="button" hidden>Отменить редактирование</button>
+          </div>
+          <p id="affiliate-form-status" class="status" role="status" aria-live="polite"></p>
+        </form>
+
+        <section class="affiliate-catalog" aria-labelledby="affiliate-catalog-title">
+          <div class="subsection-heading">
+            <div>
+              <h3 id="affiliate-catalog-title">Каталог ссылок</h3>
+              <p id="affiliate-summary" aria-live="polite">Каталог ещё не загружен.</p>
+            </div>
+            <div class="affiliate-catalog-controls">
+              <label class="catalog-filter">
+                <span>Найти бренд</span>
+                <input id="affiliate-filter" type="search" placeholder="Бренд, домен или тег" autocomplete="off">
+              </label>
+              <button id="affiliate-refresh-button" class="button button-secondary" type="button">Обновить</button>
+            </div>
+          </div>
+
+          <div id="affiliate-loading" class="empty-inline" role="status">Загрузите приватный каталог.</div>
+          <div id="affiliate-items" class="affiliate-items"></div>
+          <p id="affiliate-items-empty" class="empty-inline" hidden>По этому запросу ничего не найдено.</p>
+        </section>
+      </div>
+
+      <div id="affiliate-success-panel" class="notice notice-success" hidden>
+        <h3>Изменение подготовлено</h3>
+        <p>Pull Request создан. Каталог изменится только после проверки и merge.</p>
+        <a id="affiliate-pull-request-link" class="button button-secondary" href="#" target="_blank" rel="noopener noreferrer">Открыть PR</a>
+      </div>
+    </section>
+
     <footer>
-      <p>Страница не записывает изображения напрямую в WordPress. После merge BTM скачивает выбранный логотип в локальную медиатеку сайта.</p>
+      <p>Логотипы импортируются в локальную медиатеку WordPress. Affiliate URL копируются в BTM только после явного выбора менеджером.</p>
     </footer>
   </main>
 
@@ -179,6 +282,20 @@
         <span>Также удалить текущий файл</span>
       </label>
       <button class="button button-danger toggle-delete" type="button">Удалить</button>
+    </article>
+  </template>
+
+  <template id="affiliate-item-template">
+    <article class="affiliate-item">
+      <div class="affiliate-item-copy">
+        <strong class="affiliate-item-name"></strong>
+        <span class="affiliate-item-meta"></span>
+        <code class="affiliate-item-url"></code>
+      </div>
+      <div class="affiliate-item-actions">
+        <button class="button button-secondary edit-affiliate" type="button">Изменить</button>
+        <button class="button button-danger delete-affiliate" type="button">Удалить</button>
+      </div>
     </article>
   </template>
 </body>
