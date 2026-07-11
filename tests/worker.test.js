@@ -74,3 +74,27 @@ test('rate limiter denial returns 429 before password verification', async () =>
   }), env, {}, turnstileFetch);
   assert.equal(response.status, 429);
 });
+
+test('returns a safe error when the password verifier is unavailable', async () => {
+  const env = await environment();
+  env.PASSWORD_HASH = 'invalid-password-hash';
+  const response = await handleRequest(new Request('https://api.example.test/login', {
+    method: 'POST',
+    headers: { Origin: 'https://example.test', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: 'test-only-password-1234567890', turnstile_token: 'token' }),
+  }), env, {}, turnstileFetch);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, 'password_verifier_error');
+});
+
+test('returns a safe error when session issuance is unavailable', async () => {
+  const env = await environment();
+  env.SESSION_SECRET = 'invalid-base64';
+  const response = await handleRequest(new Request('https://api.example.test/login', {
+    method: 'POST',
+    headers: { Origin: 'https://example.test', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: 'test-only-password-1234567890', turnstile_token: 'token' }),
+  }), env, {}, turnstileFetch);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, 'session_issuer_unavailable');
+});

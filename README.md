@@ -116,12 +116,14 @@ aleksandrdruk.github.io
 
 ### 3. Секреты Worker
 
-Общий пароль должен быть минимум 20 символов. Хэш и session secret генерируются локально:
+Общий пароль должен быть уникальной случайной строкой минимум из 20 символов. Хэш и session secret генерируются локально:
 
 ```bash
 npm run password-hash
 npm run session-secret
 ```
+
+Генератор использует PBKDF2-SHA-256 с 100 000 итераций — это максимальное значение, которое принимает production runtime Cloudflare Workers. Вход дополнительно защищён Turnstile и двумя независимыми rate limiter bindings.
 
 Создайте локальный `secrets.production.json`; он игнорируется Git и после деплоя должен быть удалён:
 

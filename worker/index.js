@@ -17,6 +17,17 @@ class ApiError extends Error {
   }
 }
 
+function safeErrorKind(error) {
+  const name = error instanceof Error ? error.name : '';
+  return new Map([
+    ['DataError', 'data_error'],
+    ['Error', 'error'],
+    ['NotSupportedError', 'not_supported_error'],
+    ['OperationError', 'operation_error'],
+    ['TypeError', 'type_error'],
+  ]).get(name) || 'unknown_error';
+}
+
 function allowedOrigins(env) {
   return new Set(
     String(env.ALLOWED_ORIGINS || '')
@@ -137,19 +148,39 @@ async function handleLogin(request, env, origin, fetchImpl) {
   await enforceRateLimit(env.LOGIN_RATE_LIMITER, `login:${fingerprint}`);
 
   const body = await readSmallJson(request);
-  const turnstileValid = await validateTurnstile(body.turnstile_token, request, env, fetchImpl);
-  const passwordValid = turnstileValid
-    ? await verifyPassword(body.password, env.PASSWORD_HASH)
-    : false;
+  let turnstileValid;
+  try {
+    turnstileValid = await validateTurnstile(body.turnstile_token, request, env, fetchImpl);
+  } catch {
+    throw new ApiError(502, 'turnstile_unavailable', 'Проверка безопасности временно недоступна.');
+  }
+
+  let passwordValid = false;
+  if (turnstileValid) {
+    try {
+      passwordValid = await verifyPassword(body.password, env.PASSWORD_HASH);
+    } catch (error) {
+      throw new ApiError(
+        503,
+        `password_verifier_${safeErrorKind(error)}`,
+        'Проверка пароля временно недоступна.',
+      );
+    }
+  }
   if (!turnstileValid || !passwordValid) {
     throw new ApiError(401, 'access_denied', 'Неверный пароль или проверка безопасности.');
   }
 
-  const token = await createSessionToken(
-    env.SESSION_SECRET,
-    Number(env.SESSION_TTL_SECONDS || 1800),
-    env.SESSION_VERSION || '1',
-  );
+  let token;
+  try {
+    token = await createSessionToken(
+      env.SESSION_SECRET,
+      Number(env.SESSION_TTL_SECONDS || 1800),
+      env.SESSION_VERSION || '1',
+    );
+  } catch {
+    throw new ApiError(503, 'session_issuer_unavailable', 'Сессия временно недоступна.');
+  }
   return jsonResponse({ ok: true, token, expires_in: Number(env.SESSION_TTL_SECONDS || 1800) }, 200, origin, env);
 }
 
