@@ -1,6 +1,7 @@
 import { buildCatalogUpdate, CatalogError, slugify, validateCatalog } from './lib/catalog.js';
 import {
   AffiliateCatalogError,
+  affiliateBrandKey,
   buildAffiliateCatalogUpdate,
   validateAffiliateCatalog,
 } from './lib/affiliate-catalog.js';
@@ -58,6 +59,9 @@ const elements = {
   affiliateForm: document.getElementById('affiliate-form'),
   affiliateFormTitle: document.getElementById('affiliate-form-title'),
   affiliateBrand: document.getElementById('affiliate-brand'),
+  affiliateExistingBrand: document.getElementById('affiliate-existing-brand'),
+  affiliateExistingBrandMessage: document.getElementById('affiliate-existing-brand-message'),
+  affiliateOpenExistingBrand: document.getElementById('affiliate-open-existing-brand'),
   affiliateLogo: document.getElementById('affiliate-logo'),
   affiliateLinksEditor: document.getElementById('affiliate-links-editor'),
   affiliateAddLink: document.getElementById('affiliate-add-link'),
@@ -113,6 +117,7 @@ const state = {
   affiliateLoading: false,
   affiliateSubmitting: false,
   affiliateEditingId: '',
+  affiliateDuplicateBrandId: '',
   affiliatePage: 1,
   affiliateExpandedIds: new Set(),
   affiliateFormReturnFocusId: 'affiliate-create-button',
@@ -980,11 +985,51 @@ function confirmAffiliateFormReplacement() {
     || globalThis.confirm('Закрыть форму и потерять несохранённые изменения?');
 }
 
+function findExistingAffiliateBrand() {
+  const normalizedBrand = affiliateBrandKey(elements.affiliateBrand.value);
+  if (!normalizedBrand) return null;
+
+  return state.affiliateCatalog.items.find((item) => (
+    item.id !== state.affiliateEditingId
+    && affiliateBrandKey(item.brand) === normalizedBrand
+  )) || null;
+}
+
+function updateAffiliateSubmitButton() {
+  elements.affiliateSubmitButton.disabled = state.affiliateSubmitting
+    || !state.affiliateLoaded
+    || Boolean(state.affiliateDuplicateBrandId);
+}
+
+function updateExistingAffiliateBrandGuidance() {
+  const existingItem = findExistingAffiliateBrand();
+  state.affiliateDuplicateBrandId = existingItem?.id || '';
+  elements.affiliateExistingBrand.hidden = !existingItem;
+  elements.affiliateBrand.setCustomValidity(existingItem
+    ? `Бренд «${existingItem.brand}» уже существует. Откройте его запись и добавьте ссылку туда.`
+    : '');
+
+  if (existingItem) {
+    elements.affiliateExistingBrandMessage.textContent = 'Новую ссылку нужно добавить в существующую запись.';
+    elements.affiliateOpenExistingBrand.textContent = `Открыть «${existingItem.brand}»`;
+  } else {
+    elements.affiliateExistingBrandMessage.textContent = '';
+    elements.affiliateOpenExistingBrand.textContent = '';
+  }
+
+  updateAffiliateSubmitButton();
+}
+
 function resetAffiliateForm(clearStatus = true) {
   state.affiliateEditingId = '';
+  state.affiliateDuplicateBrandId = '';
   if (elements.affiliateForm) {
     elements.affiliateForm.reset();
   }
+  elements.affiliateBrand.setCustomValidity('');
+  elements.affiliateExistingBrand.hidden = true;
+  elements.affiliateExistingBrandMessage.textContent = '';
+  elements.affiliateOpenExistingBrand.textContent = '';
   populateAffiliateLogoOptions('');
   elements.affiliateLinksEditor.replaceChildren();
   addAffiliateLinkRow();
@@ -996,6 +1041,7 @@ function resetAffiliateForm(clearStatus = true) {
   if (clearStatus) {
     setStatus(elements.affiliateFormStatus, '');
   }
+  updateAffiliateSubmitButton();
 }
 
 function setAffiliateFormOpen(open) {
@@ -1270,6 +1316,7 @@ function editAffiliateItem(item, triggerId) {
   elements.affiliateDangerZone.hidden = false;
   elements.affiliateSuccessPanel.hidden = true;
   setStatus(elements.affiliateFormStatus, 'Существующее значение изменится только после review и merge PR.', 'info');
+  updateExistingAffiliateBrandGuidance();
   state.affiliateFormInitialValue = affiliateFormValue();
   renderAffiliateItems();
   elements.affiliateBrand.focus();
@@ -1417,7 +1464,7 @@ function renderAffiliateItems() {
 
 function setAffiliateBusy(busy) {
   state.affiliateSubmitting = busy;
-  elements.affiliateSubmitButton.disabled = busy || !state.affiliateLoaded;
+  updateAffiliateSubmitButton();
   elements.affiliateCancelButton.disabled = busy;
   elements.affiliateDeleteButton.disabled = busy;
   elements.affiliateBrand.disabled = busy;
@@ -1502,7 +1549,7 @@ async function loadAffiliateCatalog(forceRefresh = false) {
     state.affiliateLoading = false;
     elements.affiliateLoading.hidden = true;
     elements.affiliateRefreshButton.disabled = state.affiliateSubmitting;
-    elements.affiliateSubmitButton.disabled = state.affiliateSubmitting || !state.affiliateLoaded;
+    updateExistingAffiliateBrandGuidance();
     elements.affiliateCreateButton.disabled = state.affiliateSubmitting || !state.affiliateLoaded;
     renderAffiliateItems();
   }
@@ -1598,6 +1645,18 @@ function submitAffiliateForm(event) {
   submitAffiliateOperations([affiliateOperationFromForm()]);
 }
 
+function openExistingAffiliateBrand() {
+  const item = state.affiliateCatalog.items.find((entry) => (
+    entry.id === state.affiliateDuplicateBrandId
+  ));
+  if (!item) {
+    updateExistingAffiliateBrandGuidance();
+    return;
+  }
+
+  editAffiliateItem(item, `btm-affiliate-edit-${item.id}`);
+}
+
 function deleteEditingAffiliateItem() {
   const item = state.affiliateCatalog.items.find((entry) => entry.id === state.affiliateEditingId);
   if (!item || state.affiliateSubmitting) return;
@@ -1639,6 +1698,8 @@ function bindEvents() {
   });
   elements.affiliateLogoutButton.addEventListener('click', () => logout());
   elements.affiliateForm.addEventListener('submit', submitAffiliateForm);
+  elements.affiliateBrand.addEventListener('input', updateExistingAffiliateBrandGuidance);
+  elements.affiliateOpenExistingBrand.addEventListener('click', openExistingAffiliateBrand);
   elements.affiliateCreateButton.addEventListener('click', openAffiliateCreateForm);
   elements.affiliateCancelButton.addEventListener('click', closeAffiliateForm);
   elements.affiliateDeleteButton.addEventListener('click', deleteEditingAffiliateItem);
@@ -1696,7 +1757,7 @@ async function init() {
   showModule('login');
   resetAffiliateForm();
   setAffiliateFormOpen(false);
-  elements.affiliateSubmitButton.disabled = true;
+  updateAffiliateSubmitButton();
   elements.affiliateCreateButton.disabled = true;
   renderQueue();
   renderAffiliateItems();

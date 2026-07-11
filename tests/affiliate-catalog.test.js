@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AffiliateCatalogError,
+  affiliateBrandKey,
   buildAffiliateCatalogUpdate,
   normalizeDestinationUrl,
   serializeAffiliateCatalogSnapshot,
@@ -12,6 +13,11 @@ import {
 
 const emptyCatalog = () => ({ schema_version: 2, catalog_version: 1, items: [] });
 const legacyEmptyCatalog = () => ({ schema_version: 1, catalog_version: 1, items: [] });
+
+test('uses one normalized brand identity for validation and UI guidance', () => {
+  assert.equal(affiliateBrandKey('Stone Vegas'), affiliateBrandKey('  STONE-VÉGAS  '));
+  assert.equal(affiliateBrandKey('StoneVegas'), affiliateBrandKey('Stone Vegas'));
+});
 
 function link(geo, destinationUrl, options = {}) {
   return {
