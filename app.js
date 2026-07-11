@@ -1,4 +1,9 @@
 import { buildCatalogUpdate, CatalogError, slugify, validateCatalog } from './lib/catalog.js';
+import {
+  AffiliateCatalogError,
+  buildAffiliateCatalogUpdate,
+  validateAffiliateCatalog,
+} from './lib/affiliate-catalog.js';
 import { ImageValidationError, inspectImage } from './lib/image.js';
 
 if (globalThis.top !== globalThis.self) {
@@ -21,7 +26,12 @@ const elements = {
   loginButton: document.getElementById('login-button'),
   loginStatus: document.getElementById('login-status'),
   turnstileContainer: document.getElementById('turnstile-container'),
+  hubPanel: document.getElementById('hub-panel'),
+  hubLogoutButton: document.getElementById('hub-logout-button'),
+  openLogoLibrary: document.getElementById('open-logo-library'),
+  openAffiliateLibrary: document.getElementById('open-affiliate-library'),
   uploaderPanel: document.getElementById('uploader-panel'),
+  logoBackButton: document.getElementById('logo-back-button'),
   logoutButton: document.getElementById('logout-button'),
   dropZone: document.getElementById('drop-zone'),
   fileInput: document.getElementById('file-input'),
@@ -37,6 +47,26 @@ const elements = {
   catalogItems: document.getElementById('catalog-items'),
   catalogItemsEmpty: document.getElementById('catalog-items-empty'),
   catalogItemTemplate: document.getElementById('catalog-item-template'),
+  affiliatePanel: document.getElementById('affiliate-panel'),
+  affiliateBackButton: document.getElementById('affiliate-back-button'),
+  affiliateLogoutButton: document.getElementById('affiliate-logout-button'),
+  affiliateForm: document.getElementById('affiliate-form'),
+  affiliateFormTitle: document.getElementById('affiliate-form-title'),
+  affiliateBrand: document.getElementById('affiliate-brand'),
+  affiliateUrl: document.getElementById('affiliate-url'),
+  affiliateTags: document.getElementById('affiliate-tags'),
+  affiliateSubmitButton: document.getElementById('affiliate-submit-button'),
+  affiliateCancelButton: document.getElementById('affiliate-cancel-button'),
+  affiliateFormStatus: document.getElementById('affiliate-form-status'),
+  affiliateSummary: document.getElementById('affiliate-summary'),
+  affiliateFilter: document.getElementById('affiliate-filter'),
+  affiliateRefreshButton: document.getElementById('affiliate-refresh-button'),
+  affiliateLoading: document.getElementById('affiliate-loading'),
+  affiliateItems: document.getElementById('affiliate-items'),
+  affiliateItemsEmpty: document.getElementById('affiliate-items-empty'),
+  affiliateItemTemplate: document.getElementById('affiliate-item-template'),
+  affiliateSuccessPanel: document.getElementById('affiliate-success-panel'),
+  affiliatePullRequestLink: document.getElementById('affiliate-pull-request-link'),
 };
 
 const state = {
@@ -44,11 +74,18 @@ const state = {
   catalog: { schema_version: 1, catalog_version: 1, items: [] },
   sessionToken: null,
   sessionExpiresAt: 0,
+  sessionTimerId: null,
   turnstileToken: '',
   turnstileWidgetId: null,
   uploads: [],
   deletions: new Map(),
   submitting: false,
+  activeModule: 'login',
+  affiliateCatalog: { schema_version: 1, catalog_version: 1, items: [] },
+  affiliateLoaded: false,
+  affiliateLoading: false,
+  affiliateSubmitting: false,
+  affiliateEditingId: '',
 };
 
 function setStatus(element, message, kind = 'error') {
@@ -60,6 +97,20 @@ function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} Б`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+}
+
+function formatBrandCount(count) {
+  const value = Math.max(0, Number(count) || 0);
+  const mod100 = value % 100;
+  const mod10 = value % 10;
+  const noun = mod100 >= 11 && mod100 <= 14
+    ? 'брендов'
+    : mod10 === 1
+      ? 'бренд'
+      : mod10 >= 2 && mod10 <= 4
+        ? 'бренда'
+        : 'брендов';
+  return `${value} ${noun}`;
 }
 
 function safeConfig(value) {
@@ -181,6 +232,58 @@ function updateLoginButton() {
   elements.loginButton.disabled = !state.config || !state.turnstileToken || state.submitting;
 }
 
+function sessionIsActive() {
+  return Boolean(state.sessionToken) && Date.now() < state.sessionExpiresAt;
+}
+
+function scheduleSessionExpiry() {
+  if (state.sessionTimerId !== null) {
+    globalThis.clearTimeout(state.sessionTimerId);
+  }
+  const remaining = Math.max(0, state.sessionExpiresAt - Date.now());
+  state.sessionTimerId = globalThis.setTimeout(() => {
+    if (state.sessionToken && !sessionIsActive()) {
+      logout('Сессия истекла. Войдите снова.');
+    }
+  }, remaining + 25);
+}
+
+function showModule(moduleName) {
+  state.activeModule = moduleName;
+  elements.loginPanel.hidden = moduleName !== 'login';
+  elements.hubPanel.hidden = moduleName !== 'hub';
+  elements.uploaderPanel.hidden = moduleName !== 'logos';
+  elements.affiliatePanel.hidden = moduleName !== 'affiliate';
+}
+
+function showHub() {
+  if (!sessionIsActive()) {
+    logout('Сессия истекла. Войдите снова.');
+    return;
+  }
+  showModule('hub');
+  window.setTimeout(() => elements.openLogoLibrary.focus(), 0);
+}
+
+function openLogoLibrary() {
+  if (!sessionIsActive()) {
+    logout('Сессия истекла. Войдите снова.');
+    return;
+  }
+  showModule('logos');
+  window.setTimeout(() => elements.fileInput.focus(), 0);
+}
+
+function openAffiliateLibrary() {
+  if (!sessionIsActive()) {
+    logout('Сессия истекла. Войдите снова.');
+    return;
+  }
+  showModule('affiliate');
+  loadAffiliateCatalog(!state.affiliateLoaded);
+  window.setTimeout(() => elements.affiliateFilter.focus(), 0);
+}
+
 async function apiError(response) {
   try {
     const payload = await response.json();
@@ -219,12 +322,16 @@ async function login(event) {
       throw new Error('API вернул некорректную сессию.');
     }
     state.sessionToken = payload.token;
-    state.sessionExpiresAt = Date.now() + Math.min(Number(payload.expires_in || 1800), 3600) * 1000;
+    const expiresIn = Number(payload.expires_in);
+    const sessionTtlSeconds = Number.isFinite(expiresIn) && expiresIn > 0
+      ? Math.min(Math.floor(expiresIn), 3600)
+      : 1800;
+    state.sessionExpiresAt = Date.now() + sessionTtlSeconds * 1000;
+    scheduleSessionExpiry();
     elements.password.value = '';
-    elements.loginPanel.hidden = true;
-    elements.uploaderPanel.hidden = false;
+    showModule('hub');
     setStatus(elements.loginStatus, '');
-    elements.fileInput.focus();
+    elements.openLogoLibrary.focus();
   } catch (error) {
     setStatus(elements.loginStatus, error.message);
     resetTurnstile();
@@ -235,10 +342,25 @@ async function login(event) {
 }
 
 function logout(message = '') {
+  if (state.sessionTimerId !== null) {
+    globalThis.clearTimeout(state.sessionTimerId);
+    state.sessionTimerId = null;
+  }
   state.sessionToken = null;
   state.sessionExpiresAt = 0;
-  elements.uploaderPanel.hidden = true;
-  elements.loginPanel.hidden = false;
+  state.affiliateCatalog = { schema_version: 1, catalog_version: 1, items: [] };
+  state.affiliateLoaded = false;
+  state.affiliateLoading = false;
+  state.affiliateSubmitting = false;
+  resetAffiliateForm();
+  elements.affiliateFilter.value = '';
+  elements.affiliateItems.replaceChildren();
+  elements.affiliateSuccessPanel.hidden = true;
+  elements.affiliatePullRequestLink.removeAttribute('href');
+  elements.affiliateSummary.textContent = 'Каталог ещё не загружен.';
+  elements.affiliateLoading.textContent = 'Загрузите приватный каталог.';
+  elements.affiliateLoading.hidden = false;
+  showModule('login');
   setStatus(elements.loginStatus, message, message ? 'info' : 'error');
   resetTurnstile();
   elements.password.focus();
@@ -619,9 +741,267 @@ async function submitBatch() {
   }
 }
 
+function resetAffiliateForm(clearStatus = true) {
+  state.affiliateEditingId = '';
+  if (elements.affiliateForm) {
+    elements.affiliateForm.reset();
+  }
+  elements.affiliateFormTitle.textContent = 'Новая ссылка';
+  elements.affiliateSubmitButton.textContent = 'Создать PR';
+  elements.affiliateCancelButton.hidden = true;
+  if (clearStatus) {
+    setStatus(elements.affiliateFormStatus, '');
+  }
+}
+
+function safePullRequestUrl(value) {
+  try {
+    const url = new URL(value);
+    if (
+      url.origin !== 'https://github.com'
+      || !/^\/[^/]+\/[^/]+\/pull\/[1-9][0-9]*\/?$/.test(url.pathname)
+      || url.search
+      || url.hash
+    ) {
+      return null;
+    }
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function editAffiliateItem(item) {
+  state.affiliateEditingId = item.id;
+  elements.affiliateBrand.value = item.brand;
+  elements.affiliateUrl.value = item.destination_url;
+  elements.affiliateTags.value = item.tags.join(', ');
+  elements.affiliateFormTitle.textContent = `Изменение: ${item.brand}`;
+  elements.affiliateSubmitButton.textContent = 'Создать PR с изменением';
+  elements.affiliateCancelButton.hidden = false;
+  elements.affiliateSuccessPanel.hidden = true;
+  setStatus(elements.affiliateFormStatus, 'Существующее значение изменится только после review и merge PR.', 'info');
+  renderAffiliateItems();
+  elements.affiliateBrand.focus();
+}
+
+function renderAffiliateItems() {
+  const filter = elements.affiliateFilter.value.trim().toLowerCase();
+  const items = [...state.affiliateCatalog.items]
+    .sort((left, right) => left.brand.localeCompare(right.brand, 'ru'))
+    .filter((item) => {
+      const haystack = [item.brand, item.id, item.destination_url, ...item.tags].join(' ').toLowerCase();
+      return !filter || haystack.includes(filter);
+    });
+
+  elements.affiliateItems.replaceChildren();
+  elements.affiliateLoading.hidden = state.affiliateLoaded || state.affiliateLoading === false;
+  if (state.affiliateLoading) {
+    elements.affiliateLoading.hidden = false;
+    elements.affiliateLoading.textContent = 'Загружаем приватный каталог…';
+  }
+
+  const showEmpty = state.affiliateLoaded && !state.affiliateLoading && items.length === 0;
+  elements.affiliateItemsEmpty.hidden = !showEmpty;
+  elements.affiliateItemsEmpty.textContent = state.affiliateCatalog.items.length === 0
+    ? 'Каталог пока пуст. Добавьте первую ссылку через форму.'
+    : 'По этому запросу ничего не найдено.';
+
+  items.forEach((item) => {
+    const fragment = elements.affiliateItemTemplate.content.cloneNode(true);
+    const row = fragment.querySelector('.affiliate-item');
+    const editButton = fragment.querySelector('.edit-affiliate');
+    const deleteButton = fragment.querySelector('.delete-affiliate');
+    const deleteButtonId = `btm-affiliate-delete-${item.id}`;
+    fragment.querySelector('.affiliate-item-name').textContent = item.brand;
+    fragment.querySelector('.affiliate-item-meta').textContent = `${item.id} · v${item.version}${item.tags.length ? ` · ${item.tags.join(', ')}` : ''}`;
+    fragment.querySelector('.affiliate-item-url').textContent = item.destination_url;
+    row.classList.toggle('is-editing', state.affiliateEditingId === item.id);
+    deleteButton.id = deleteButtonId;
+    editButton.disabled = state.affiliateSubmitting;
+    deleteButton.disabled = state.affiliateSubmitting;
+    editButton.addEventListener('click', () => editAffiliateItem(item));
+    deleteButton.addEventListener('click', () => {
+      if (!globalThis.confirm(`Удалить ${item.brand} из центрального каталога? Уже скопированные ссылки на сайтах не изменятся.`)) {
+        return;
+      }
+      submitAffiliateOperations([{ mode: 'delete', asset_id: item.id }], deleteButtonId);
+    });
+    elements.affiliateItems.append(fragment);
+  });
+}
+
+function setAffiliateBusy(busy) {
+  state.affiliateSubmitting = busy;
+  elements.affiliateSubmitButton.disabled = busy || !state.affiliateLoaded;
+  elements.affiliateCancelButton.disabled = busy;
+  elements.affiliateRefreshButton.disabled = busy || state.affiliateLoading;
+  elements.affiliateItems.querySelectorAll('button').forEach((button) => {
+    button.disabled = busy;
+  });
+}
+
+async function loadAffiliateCatalog(forceRefresh = false) {
+  if (!state.config || state.affiliateLoading) return;
+  if (!sessionIsActive()) {
+    logout('Сессия истекла. Войдите снова.');
+    return;
+  }
+  if (state.affiliateLoaded && !forceRefresh) {
+    renderAffiliateItems();
+    return;
+  }
+
+  state.affiliateLoading = true;
+  const requestSessionToken = state.sessionToken;
+  elements.affiliateRefreshButton.disabled = true;
+  elements.affiliateItemsEmpty.hidden = true;
+  elements.affiliateSummary.textContent = 'Загрузка…';
+  setStatus(elements.affiliateFormStatus, 'Загружаем приватный каталог…', 'info');
+  renderAffiliateItems();
+
+  try {
+    const response = await fetch(`${state.config.apiBase}/affiliate-catalog`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${state.sessionToken}` },
+      cache: 'no-store',
+    });
+    if (requestSessionToken !== state.sessionToken || !sessionIsActive()) {
+      return;
+    }
+    if (response.status === 401) {
+      logout('Сессия истекла. Войдите снова.');
+      return;
+    }
+    if (!response.ok) {
+      throw new Error(await apiError(response));
+    }
+    const payload = await response.json();
+    if (payload?.ok !== true || !payload.catalog) {
+      throw new Error('API вернул некорректный affiliate-каталог.');
+    }
+    state.affiliateCatalog = validateAffiliateCatalog(payload.catalog);
+    state.affiliateLoaded = true;
+    if (
+      state.affiliateEditingId
+      && !state.affiliateCatalog.items.some((item) => item.id === state.affiliateEditingId)
+    ) {
+      resetAffiliateForm();
+    }
+    elements.affiliateSummary.textContent = `v${state.affiliateCatalog.catalog_version} · ${formatBrandCount(state.affiliateCatalog.items.length)}`;
+    setStatus(elements.affiliateFormStatus, 'Каталог загружен. Изменения создают PR и не применяются напрямую.', 'success');
+  } catch (error) {
+    const prefix = state.affiliateLoaded ? 'Не удалось обновить каталог' : 'Не удалось загрузить каталог';
+    elements.affiliateSummary.textContent = state.affiliateLoaded
+      ? `v${state.affiliateCatalog.catalog_version} · сохранена текущая копия`
+      : 'Недоступен';
+    setStatus(elements.affiliateFormStatus, `${prefix}: ${error.message}`);
+  } finally {
+    state.affiliateLoading = false;
+    elements.affiliateLoading.hidden = true;
+    elements.affiliateRefreshButton.disabled = state.affiliateSubmitting;
+    elements.affiliateSubmitButton.disabled = state.affiliateSubmitting || !state.affiliateLoaded;
+    renderAffiliateItems();
+  }
+}
+
+function affiliateOperationFromForm() {
+  return {
+    mode: state.affiliateEditingId ? 'update' : 'new',
+    asset_id: state.affiliateEditingId,
+    brand: elements.affiliateBrand.value,
+    destination_url: elements.affiliateUrl.value,
+    tags: elements.affiliateTags.value,
+  };
+}
+
+async function submitAffiliateOperations(operations, restoreFocusId = '') {
+  if (!state.config || !state.affiliateLoaded || state.affiliateSubmitting) return;
+  if (!sessionIsActive()) {
+    logout('Сессия истекла. Войдите снова.');
+    return;
+  }
+
+  try {
+    buildAffiliateCatalogUpdate(state.affiliateCatalog, operations);
+  } catch (error) {
+    if (error instanceof AffiliateCatalogError) {
+      setStatus(elements.affiliateFormStatus, error.message);
+      return;
+    }
+    throw error;
+  }
+
+  setAffiliateBusy(true);
+  const requestSessionToken = state.sessionToken;
+  elements.affiliateSuccessPanel.hidden = true;
+  setStatus(elements.affiliateFormStatus, 'Проверяем актуальную версию и создаём GitHub PR…', 'info');
+  try {
+    const response = await fetch(`${state.config.apiBase}/affiliate-catalog/propose`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${state.sessionToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        catalog_version: state.affiliateCatalog.catalog_version,
+        operations,
+      }),
+    });
+    if (requestSessionToken !== state.sessionToken || !sessionIsActive()) {
+      return;
+    }
+    if (response.status === 401) {
+      logout('Сессия истекла. Войдите снова.');
+      return;
+    }
+    if (!response.ok) {
+      throw new Error(await apiError(response));
+    }
+    const payload = await response.json();
+    const pullUrl = safePullRequestUrl(payload?.pull_request?.url || '');
+    if (payload?.ok !== true || !pullUrl) {
+      throw new Error('API вернул неожиданный адрес PR.');
+    }
+
+    elements.affiliatePullRequestLink.href = pullUrl.href;
+    elements.affiliateSuccessPanel.hidden = false;
+    resetAffiliateForm(false);
+    setStatus(elements.affiliateFormStatus, 'PR создан. Текущий каталог не изменится до review и merge.', 'success');
+  } catch (error) {
+    setStatus(elements.affiliateFormStatus, error.message);
+  } finally {
+    setAffiliateBusy(false);
+    renderAffiliateItems();
+    if (restoreFocusId) {
+      globalThis.setTimeout(() => document.getElementById(restoreFocusId)?.focus(), 0);
+    }
+  }
+}
+
+function submitAffiliateForm(event) {
+  event.preventDefault();
+  submitAffiliateOperations([affiliateOperationFromForm()]);
+}
+
 function bindEvents() {
   elements.loginForm.addEventListener('submit', login);
+  elements.hubLogoutButton.addEventListener('click', () => logout());
+  elements.openLogoLibrary.addEventListener('click', openLogoLibrary);
+  elements.openAffiliateLibrary.addEventListener('click', openAffiliateLibrary);
+  elements.logoBackButton.addEventListener('click', showHub);
   elements.logoutButton.addEventListener('click', () => logout());
+  elements.affiliateBackButton.addEventListener('click', showHub);
+  elements.affiliateLogoutButton.addEventListener('click', () => logout());
+  elements.affiliateForm.addEventListener('submit', submitAffiliateForm);
+  elements.affiliateCancelButton.addEventListener('click', () => resetAffiliateForm());
+  elements.affiliateFilter.addEventListener('input', renderAffiliateItems);
+  elements.affiliateRefreshButton.addEventListener('click', () => loadAffiliateCatalog(true));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.sessionToken && !sessionIsActive()) {
+      logout('Сессия истекла. Войдите снова.');
+    }
+  });
   elements.fileInput.addEventListener('change', () => addFiles(elements.fileInput.files));
   elements.uploadButton.addEventListener('click', submitBatch);
   elements.catalogFilter.addEventListener('input', renderCatalogItems);
@@ -643,7 +1023,11 @@ function bindEvents() {
 
 async function init() {
   bindEvents();
+  showModule('login');
+  resetAffiliateForm();
+  elements.affiliateSubmitButton.disabled = true;
   renderQueue();
+  renderAffiliateItems();
   try {
     state.config = await loadConfig();
   } catch (error) {

@@ -10,7 +10,10 @@
       "SESSION_SECRET",
       "TURNSTILE_SECRET",
       "GITHUB_APP_ID",
-      "GITHUB_APP_PRIVATE_KEY"
+      "GITHUB_APP_PRIVATE_KEY",
+      "AFFILIATE_GITHUB_APP_ID",
+      "AFFILIATE_GITHUB_APP_PRIVATE_KEY",
+      "AFFILIATE_READ_MASTER_SECRET"
     ]
   },
   "vars": {
@@ -19,6 +22,9 @@
     "GITHUB_OWNER": "AleksandrDruk",
     "GITHUB_REPO": "btm-library",
     "GITHUB_BASE_BRANCH": "main",
+    "AFFILIATE_GITHUB_OWNER": "AleksandrDruk",
+    "AFFILIATE_GITHUB_REPO": "btm-affiliate-library",
+    "AFFILIATE_GITHUB_BASE_BRANCH": "main",
     "TURNSTILE_HOSTNAME": "aleksandrdruk.github.io",
     "SESSION_TTL_SECONDS": "1800",
     "SESSION_VERSION": "1"
@@ -39,6 +45,36 @@
         "limit": 10,
         "period": 60
       }
+    },
+    {
+      "name": "AFFILIATE_READ_RATE_LIMITER",
+      "namespace_id": "41003",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    },
+    {
+      "name": "AFFILIATE_WRITE_RATE_LIMITER",
+      "namespace_id": "41004",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AFFILIATE_NONCE_STORE",
+        "class_name": "AffiliateNonceStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "affiliate-nonce-v1",
+      "new_sqlite_classes": ["AffiliateNonceStore"]
     }
   ],
   "observability": {

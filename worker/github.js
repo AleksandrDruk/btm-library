@@ -5,7 +5,7 @@ const API_VERSION = '2026-03-10';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-let cachedToken = null;
+const cachedTokens = new Map();
 
 export class GitHubApiError extends Error {
   constructor(code, message, status = 502) {
@@ -67,15 +67,15 @@ function privateKeyBytes(pemValue) {
   throw new GitHubApiError('github_key_invalid', 'GitHub App private key имеет неизвестный формат.', 503);
 }
 
-async function createAppJwt(env) {
-  const appId = String(env.GITHUB_APP_ID || '').trim();
-  if (!/^\d+$/.test(appId) || !env.GITHUB_APP_PRIVATE_KEY) {
+async function createAppJwt(configuration) {
+  const appId = configuration.appId;
+  if (!/^\d+$/.test(appId) || !configuration.privateKey) {
     throw new GitHubApiError('github_not_configured', 'GitHub App не настроена.', 503);
   }
 
   const key = await crypto.subtle.importKey(
     'pkcs8',
-    privateKeyBytes(env.GITHUB_APP_PRIVATE_KEY),
+    privateKeyBytes(configuration.privateKey),
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['sign'],
@@ -88,14 +88,23 @@ async function createAppJwt(env) {
   return `${unsigned}.${bytesToBase64Url(new Uint8Array(signature))}`;
 }
 
-function repoCoordinates(env) {
-  const owner = String(env.GITHUB_OWNER || '').trim();
-  const repo = String(env.GITHUB_REPO || '').trim();
-  const branch = String(env.GITHUB_BASE_BRANCH || 'main').trim();
+function repoConfiguration(env, prefix = 'GITHUB') {
+  if (!/^[A-Z][A-Z0-9_]{0,40}$/.test(prefix)) {
+    throw new GitHubApiError('github_config_invalid', 'GitHub repository prefix некорректен.', 503);
+  }
+
+  const owner = String(env[`${prefix}_OWNER`] || '').trim();
+  const repo = String(env[`${prefix}_REPO`] || '').trim();
+  const branch = String(env[`${prefix}_BASE_BRANCH`] || 'main').trim();
+  const appId = String(env[`${prefix}_APP_ID`] || '').trim();
+  const privateKey = String(env[`${prefix}_APP_PRIVATE_KEY`] || '');
   if (!/^[A-Za-z0-9-]+$/.test(owner) || !/^[A-Za-z0-9._-]+$/.test(repo) || !/^[A-Za-z0-9._/-]+$/.test(branch)) {
     throw new GitHubApiError('github_config_invalid', 'GitHub repository config некорректен.', 503);
   }
-  return { owner, repo, branch };
+  if (!/^\d+$/.test(appId) || !privateKey) {
+    throw new GitHubApiError('github_not_configured', 'GitHub App не настроена.', 503);
+  }
+  return { owner, repo, branch, appId, privateKey, prefix };
 }
 
 async function readErrorMessage(response) {
@@ -146,17 +155,20 @@ function installationHeaders(token) {
   };
 }
 
-async function installationToken(env, fetchImpl) {
-  const coordinates = repoCoordinates(env);
-  const cacheKey = `${env.GITHUB_APP_ID}:${coordinates.owner}/${coordinates.repo}`;
+async function installationToken(configuration, access, fetchImpl) {
+  const permissions = access === 'read'
+    ? { contents: 'read' }
+    : { contents: 'write', pull_requests: 'write' };
+  const cacheKey = `${configuration.appId}:${configuration.owner}/${configuration.repo}:${access}`;
   const now = Date.now();
-  if (cachedToken && cachedToken.key === cacheKey && cachedToken.expiresAt > now + 60_000) {
+  const cachedToken = cachedTokens.get(cacheKey);
+  if (cachedToken && cachedToken.expiresAt > now + 60_000) {
     return cachedToken.token;
   }
 
-  const jwt = await createAppJwt(env);
+  const jwt = await createAppJwt(configuration);
   const installation = await githubFetch(
-    `/repos/${encodeURIComponent(coordinates.owner)}/${encodeURIComponent(coordinates.repo)}/installation`,
+    `/repos/${encodeURIComponent(configuration.owner)}/${encodeURIComponent(configuration.repo)}/installation`,
     { headers: appHeaders(jwt) },
     fetchImpl,
   );
@@ -166,8 +178,8 @@ async function installationToken(env, fetchImpl) {
       method: 'POST',
       headers: appHeaders(jwt),
       body: JSON.stringify({
-        repositories: [coordinates.repo],
-        permissions: { contents: 'write', pull_requests: 'write' },
+        repositories: [configuration.repo],
+        permissions,
       }),
     },
     fetchImpl,
@@ -176,7 +188,7 @@ async function installationToken(env, fetchImpl) {
   if (typeof tokenResult.token !== 'string' || !Number.isFinite(expiresAt)) {
     throw new GitHubApiError('github_token_invalid', 'GitHub вернул некорректный installation token.', 502);
   }
-  cachedToken = { key: cacheKey, token: tokenResult.token, expiresAt };
+  cachedTokens.set(cacheKey, { token: tokenResult.token, expiresAt });
   return tokenResult.token;
 }
 
@@ -194,9 +206,19 @@ async function apiRequest(coordinates, token, path, options, fetchImpl) {
   );
 }
 
-export async function getRepositorySnapshot(env, fetchImpl = fetch) {
-  const coordinates = repoCoordinates(env);
-  const token = await installationToken(env, fetchImpl);
+export async function getRepositorySnapshot(env, fetchImpl = fetch, options = {}) {
+  const configuration = repoConfiguration(env, options.prefix || 'GITHUB');
+  const coordinates = {
+    owner: configuration.owner,
+    repo: configuration.repo,
+    branch: configuration.branch,
+  };
+  const access = options.access === 'read' ? 'read' : 'write';
+  const catalogPath = String(options.catalogPath || 'catalog.json');
+  if (!/^[A-Za-z0-9._/-]+$/.test(catalogPath) || catalogPath.includes('..') || catalogPath.startsWith('/')) {
+    throw new GitHubApiError('github_catalog_path_invalid', 'GitHub catalog path некорректен.', 503);
+  }
+  const token = await installationToken(configuration, access, fetchImpl);
   const ref = await apiRequest(
     coordinates,
     token,
@@ -209,9 +231,10 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch) {
     throw new GitHubApiError('github_ref_invalid', 'GitHub не вернул SHA основной ветки.', 502);
   }
 
+  const encodedCatalogPath = catalogPath.split('/').map(encodeURIComponent).join('/');
   const [commit, catalogFile] = await Promise.all([
     apiRequest(coordinates, token, `/git/commits/${baseCommitSha}`, {}, fetchImpl),
-    apiRequest(coordinates, token, `/contents/catalog.json?ref=${encodeURIComponent(coordinates.branch)}`, {}, fetchImpl),
+    apiRequest(coordinates, token, `/contents/${encodedCatalogPath}?ref=${encodeURIComponent(baseCommitSha)}`, {}, fetchImpl),
   ]);
   if (typeof commit?.tree?.sha !== 'string' || typeof catalogFile?.content !== 'string') {
     throw new GitHubApiError('github_snapshot_invalid', 'Не удалось получить актуальный catalog.json.', 502);
@@ -230,14 +253,18 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch) {
     token,
     baseCommitSha,
     baseTreeSha: commit.tree.sha,
+    catalogPath,
     catalog,
   };
 }
 
-function branchName() {
+function branchName(prefix = 'uploads') {
+  if (!/^[a-z0-9][a-z0-9-]{0,39}$/.test(prefix)) {
+    throw new GitHubApiError('github_branch_prefix_invalid', 'GitHub branch prefix некорректен.', 500);
+  }
   const date = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
   const suffix = bytesToBase64Url(crypto.getRandomValues(new Uint8Array(6))).toLowerCase();
-  return `uploads/${date}-${suffix}`;
+  return `${prefix}/${date}-${suffix}`;
 }
 
 async function createBlob(snapshot, content, encoding, fetchImpl) {
@@ -348,6 +375,119 @@ export async function createUploadPullRequest(snapshot, catalogText, changes, fi
             '- Direct changes to main: none',
             '',
             'Merge only after the validate-catalog check succeeds and the diff has been reviewed.',
+          ].join('\n'),
+          draft: false,
+        }),
+      },
+      fetchImpl,
+    );
+    return {
+      number: pullRequest.number,
+      url: pullRequest.html_url,
+      branch,
+      commit: commit.sha,
+    };
+  } catch (error) {
+    try {
+      await apiRequest(
+        snapshot.coordinates,
+        snapshot.token,
+        `/git/refs/heads/${branch.split('/').map(encodeURIComponent).join('/')}`,
+        { method: 'DELETE' },
+        fetchImpl,
+      );
+    } catch {
+      // The just-created branch may need manual cleanup if GitHub is partially unavailable.
+    }
+    throw error;
+  }
+}
+
+export async function createAffiliateCatalogPullRequest(snapshot, catalogText, changes, fetchImpl = fetch) {
+  if (!Array.isArray(changes) || changes.length < 1 || changes.length > 20) {
+    throw new GitHubApiError('affiliate_changes_invalid', 'Affiliate catalog change set некорректен.', 500);
+  }
+
+  const catalogSha = await createBlob(snapshot, catalogText, 'utf-8', fetchImpl);
+  const tree = await apiRequest(
+    snapshot.coordinates,
+    snapshot.token,
+    '/git/trees',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        base_tree: snapshot.baseTreeSha,
+        tree: [{
+          path: snapshot.catalogPath || 'catalog.json',
+          mode: '100644',
+          type: 'blob',
+          sha: catalogSha,
+        }],
+      }),
+    },
+    fetchImpl,
+  );
+  if (typeof tree?.sha !== 'string') {
+    throw new GitHubApiError('github_tree_invalid', 'GitHub не вернул SHA дерева.', 502);
+  }
+
+  const counts = changes.reduce((result, change) => {
+    if (change.mode === 'new') result.added += 1;
+    if (change.mode === 'update') result.updated += 1;
+    if (change.mode === 'delete') result.deleted += 1;
+    return result;
+  }, { added: 0, updated: 0, deleted: 0 });
+  const commit = await apiRequest(
+    snapshot.coordinates,
+    snapshot.token,
+    '/git/commits',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        message: `Prepare affiliate catalog update (${changes.length})`,
+        tree: tree.sha,
+        parents: [snapshot.baseCommitSha],
+      }),
+    },
+    fetchImpl,
+  );
+  if (typeof commit?.sha !== 'string') {
+    throw new GitHubApiError('github_commit_invalid', 'GitHub не вернул SHA commit.', 502);
+  }
+
+  const branch = branchName('affiliate-links');
+  await apiRequest(
+    snapshot.coordinates,
+    snapshot.token,
+    '/git/refs',
+    {
+      method: 'POST',
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: commit.sha }),
+    },
+    fetchImpl,
+  );
+
+  try {
+    const firstBrand = String(changes[0]?.brand || 'catalog').slice(0, 100);
+    const pullRequest = await apiRequest(
+      snapshot.coordinates,
+      snapshot.token,
+      '/pulls',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          title: `Affiliate catalog: ${firstBrand}${changes.length > 1 ? ` +${changes.length - 1}` : ''}`,
+          head: branch,
+          base: snapshot.coordinates.branch,
+          body: [
+            'Automated BTM affiliate catalog proposal.',
+            '',
+            `- Added: ${counts.added}`,
+            `- Updated: ${counts.updated}`,
+            `- Removed: ${counts.deleted}`,
+            '- Direct changes to main: none',
+            '',
+            'Merge only after catalog validation and manual diff review.',
           ].join('\n'),
           draft: false,
         }),

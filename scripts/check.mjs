@@ -7,15 +7,18 @@ import { validateRepository } from './validate-catalog.mjs';
 
 const javascriptFiles = [
   'app.js',
+  'lib/affiliate-catalog.js',
   'lib/catalog.js',
   'lib/crypto.js',
   'lib/image.js',
   'worker/github.js',
+  'worker/affiliate-nonce.js',
   'worker/index.js',
   'scripts/check.mjs',
   'scripts/dev-server.mjs',
   'scripts/generate-password-hash.mjs',
   'scripts/generate-session-secret.mjs',
+  'scripts/generate-site-credential.mjs',
   'scripts/inspect-images.mjs',
   'scripts/validate-catalog.mjs',
 ];

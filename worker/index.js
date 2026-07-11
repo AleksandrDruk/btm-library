@@ -1,11 +1,35 @@
 import { buildCatalogUpdate, CatalogError, serializeCatalog, validateCatalog } from '../lib/catalog.js';
-import { createSessionToken, shortDigest, verifyPassword, verifySessionToken } from '../lib/crypto.js';
+import {
+  createSessionToken,
+  deriveAffiliateSiteSecret,
+  normalizeAffiliateSiteId,
+  shortDigest,
+  verifyAffiliateSiteSignature,
+  verifyPassword,
+  verifySessionToken,
+} from '../lib/crypto.js';
+import {
+  AffiliateCatalogError,
+  buildAffiliateCatalogUpdate,
+  serializeAffiliateCatalog,
+  validateAffiliateCatalog,
+} from '../lib/affiliate-catalog.js';
 import { ImageValidationError, inspectImage, MAX_IMAGE_BYTES } from '../lib/image.js';
-import { createUploadPullRequest, getRepositorySnapshot, GitHubApiError } from './github.js';
+import { AffiliateNonceStore, consumeAffiliateNonce } from './affiliate-nonce.js';
+import {
+  createAffiliateCatalogPullRequest,
+  createUploadPullRequest,
+  getRepositorySnapshot,
+  GitHubApiError,
+} from './github.js';
 
-const API_VERSION = '1.0.0';
+const API_VERSION = '1.1.0';
+const encoder = new TextEncoder();
 const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
 const MAX_METADATA_BYTES = 64 * 1024;
+const MAX_AFFILIATE_REQUEST_BYTES = 128 * 1024;
+const AFFILIATE_REQUEST_MAX_AGE_SECONDS = 55;
+const AFFILIATE_REQUEST_MAX_FUTURE_SECONDS = 5;
 const TURNSTILE_TEST_SECRET = '1x0000000000000000000000000000000AA';
 
 class ApiError extends Error {
@@ -123,13 +147,13 @@ async function validateTurnstile(token, request, env, fetchImpl) {
     && result.hostname === env.TURNSTILE_HOSTNAME;
 }
 
-async function readSmallJson(request) {
+async function readJson(request, maxBytes = 8192) {
   const declaredLength = Number(request.headers.get('Content-Length') || 0);
-  if (declaredLength > 8192) {
+  if (declaredLength > maxBytes) {
     throw new ApiError(413, 'request_too_large', 'Запрос слишком большой.');
   }
   const text = await request.text();
-  if (text.length > 8192) {
+  if (encoder.encode(text).byteLength > maxBytes) {
     throw new ApiError(413, 'request_too_large', 'Запрос слишком большой.');
   }
   try {
@@ -141,13 +165,10 @@ async function readSmallJson(request) {
 
 async function handleLogin(request, env, origin, fetchImpl) {
   requireConfigured(env, ['PASSWORD_HASH', 'SESSION_SECRET', 'TURNSTILE_SECRET', 'TURNSTILE_HOSTNAME']);
-  const fingerprint = await shortDigest([
-    request.headers.get('CF-Connecting-IP') || 'unknown',
-    request.headers.get('User-Agent') || 'unknown',
-  ].join('|'));
+  const fingerprint = await shortDigest(request.headers.get('CF-Connecting-IP') || 'unknown');
   await enforceRateLimit(env.LOGIN_RATE_LIMITER, `login:${fingerprint}`);
 
-  const body = await readSmallJson(request);
+  const body = await readJson(request);
   let turnstileValid;
   try {
     turnstileValid = await validateTurnstile(body.turnstile_token, request, env, fetchImpl);
@@ -290,6 +311,148 @@ async function handleUpload(request, env, origin, fetchImpl) {
   return jsonResponse({ ok: true, pull_request: result }, 201, origin, env);
 }
 
+function requireAffiliateRepository(env) {
+  requireConfigured(env, [
+    'AFFILIATE_GITHUB_APP_ID',
+    'AFFILIATE_GITHUB_APP_PRIVATE_KEY',
+    'AFFILIATE_GITHUB_OWNER',
+    'AFFILIATE_GITHUB_REPO',
+    'AFFILIATE_GITHUB_BASE_BRANCH',
+  ]);
+}
+
+async function affiliateRepositorySnapshot(env, fetchImpl, access) {
+  requireAffiliateRepository(env);
+  const snapshot = await getRepositorySnapshot(env, fetchImpl, {
+    prefix: 'AFFILIATE_GITHUB',
+    access,
+    catalogPath: 'catalog.json',
+  });
+  return {
+    snapshot,
+    catalog: validateAffiliateCatalog(snapshot.catalog),
+  };
+}
+
+async function handleAffiliateCatalogGet(request, env, origin, fetchImpl) {
+  const session = await requireSession(request, env);
+  await enforceRateLimit(env.AFFILIATE_READ_RATE_LIMITER, `browser:${session.nonce}`);
+  const result = await affiliateRepositorySnapshot(env, fetchImpl, 'read');
+  return jsonResponse({ ok: true, catalog: result.catalog }, 200, origin, env);
+}
+
+async function handleAffiliateCatalogProposal(request, env, origin, fetchImpl) {
+  const session = await requireSession(request, env);
+  await enforceRateLimit(env.AFFILIATE_WRITE_RATE_LIMITER, `proposal:${session.nonce}`);
+
+  const body = await readJson(request, MAX_AFFILIATE_REQUEST_BYTES);
+  if (
+    body === null
+    || typeof body !== 'object'
+    || Array.isArray(body)
+    || !Number.isInteger(body.catalog_version)
+    || !Array.isArray(body.operations)
+  ) {
+    throw new ApiError(400, 'affiliate_request_invalid', 'Параметры affiliate-каталога некорректны.');
+  }
+
+  const current = await affiliateRepositorySnapshot(env, fetchImpl, 'write');
+  if (current.catalog.catalog_version !== body.catalog_version) {
+    throw new ApiError(409, 'affiliate_catalog_changed', 'Каталог изменился. Обновите список и повторите действие.');
+  }
+
+  const update = buildAffiliateCatalogUpdate(current.catalog, body.operations);
+  const pullRequest = await createAffiliateCatalogPullRequest(
+    current.snapshot,
+    serializeAffiliateCatalog(update.catalog),
+    update.changes,
+    fetchImpl,
+  );
+  const expectedPrefix = `https://github.com/${current.snapshot.coordinates.owner}/${current.snapshot.coordinates.repo}/pull/`;
+  if (typeof pullRequest.url !== 'string' || !pullRequest.url.startsWith(expectedPrefix)) {
+    throw new ApiError(502, 'github_url_invalid', 'GitHub вернул неожиданный адрес PR.');
+  }
+
+  return jsonResponse({ ok: true, pull_request: pullRequest }, 201, origin, env);
+}
+
+function deniedAffiliateSites(env) {
+  return new Set(
+    String(env.AFFILIATE_SITE_DENYLIST || '')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+async function requireAffiliateSite(request, env) {
+  requireConfigured(env, ['AFFILIATE_READ_MASTER_SECRET']);
+
+  const fingerprint = await shortDigest([
+    request.headers.get('CF-Connecting-IP') || 'unknown',
+  ].join('|'));
+  await enforceRateLimit(env.AFFILIATE_READ_RATE_LIMITER, `site-auth:${fingerprint}`);
+
+  const declaredLength = contentLength(request);
+  if (
+    (declaredLength !== null && declaredLength !== 0)
+    || (declaredLength === null && request.body !== null)
+  ) {
+    throw new ApiError(400, 'affiliate_body_not_empty', 'Этот запрос не должен содержать тело.');
+  }
+
+  let siteId;
+  try {
+    siteId = normalizeAffiliateSiteId(request.headers.get('X-BTM-Site'));
+  } catch {
+    throw new ApiError(401, 'affiliate_auth_invalid', 'Авторизация affiliate-каталога отклонена.');
+  }
+  if (deniedAffiliateSites(env).has(siteId)) {
+    throw new ApiError(403, 'affiliate_site_denied', 'Доступ этого сайта к affiliate-каталогу отключён.');
+  }
+
+  const timestamp = Number(request.headers.get('X-BTM-Timestamp'));
+  const nonce = request.headers.get('X-BTM-Nonce') || '';
+  const signature = request.headers.get('X-BTM-Signature') || '';
+  const now = Math.floor(Date.now() / 1000);
+  if (
+    !Number.isInteger(timestamp)
+    || timestamp < now - AFFILIATE_REQUEST_MAX_AGE_SECONDS
+    || timestamp > now + AFFILIATE_REQUEST_MAX_FUTURE_SECONDS
+  ) {
+    throw new ApiError(401, 'affiliate_auth_expired', 'Авторизация affiliate-каталога истекла.');
+  }
+
+  let siteSecret;
+  try {
+    siteSecret = await deriveAffiliateSiteSecret(env.AFFILIATE_READ_MASTER_SECRET, siteId);
+  } catch {
+    throw new ApiError(503, 'affiliate_auth_unavailable', 'Авторизация affiliate-каталога временно недоступна.');
+  }
+  const signatureValid = await verifyAffiliateSiteSignature(signature, siteSecret, siteId, timestamp, nonce);
+  if (!signatureValid) {
+    throw new ApiError(401, 'affiliate_auth_invalid', 'Авторизация affiliate-каталога отклонена.');
+  }
+
+  let nonceAccepted;
+  try {
+    nonceAccepted = await consumeAffiliateNonce(env.AFFILIATE_NONCE_STORE, siteId, nonce);
+  } catch {
+    throw new ApiError(503, 'affiliate_nonce_unavailable', 'Защита affiliate-каталога временно недоступна.');
+  }
+  if (!nonceAccepted) {
+    throw new ApiError(409, 'affiliate_replay_rejected', 'Повторный запрос affiliate-каталога отклонён.');
+  }
+  await enforceRateLimit(env.AFFILIATE_READ_RATE_LIMITER, `site:${siteId}`);
+  return siteId;
+}
+
+async function handleAffiliateSiteRead(request, env, fetchImpl) {
+  await requireAffiliateSite(request, env);
+  const result = await affiliateRepositorySnapshot(env, fetchImpl, 'read');
+  return jsonResponse({ ok: true, catalog: result.catalog }, 200, null, env);
+}
+
 export async function handleRequest(request, env, context = {}, fetchImpl = fetch) {
   const url = new URL(request.url);
   const requestOrigin = request.headers.get('Origin');
@@ -301,14 +464,51 @@ export async function handleRequest(request, env, context = {}, fetchImpl = fetc
     }
 
     if (request.method === 'GET' && url.pathname === '/health') {
-      const ready = Boolean(
+      const sharedBrowserReady = Boolean(
         env.PASSWORD_HASH
         && env.SESSION_SECRET
         && env.TURNSTILE_SECRET
-        && env.GITHUB_APP_ID
-        && env.GITHUB_APP_PRIVATE_KEY,
+        && env.TURNSTILE_HOSTNAME
+        && env.ALLOWED_ORIGINS
+        && env.LOGIN_RATE_LIMITER
+        && (env.ENVIRONMENT !== 'production' || env.TURNSTILE_SECRET !== TURNSTILE_TEST_SECRET),
       );
-      return jsonResponse({ ok: true, ready, version: API_VERSION }, 200, requestOrigin, env);
+      const logoReady = Boolean(
+        sharedBrowserReady
+        && env.GITHUB_APP_ID
+        && env.GITHUB_APP_PRIVATE_KEY
+        && env.GITHUB_OWNER
+        && env.GITHUB_REPO
+        && env.GITHUB_BASE_BRANCH
+        && env.UPLOAD_RATE_LIMITER,
+      );
+      const affiliateReady = Boolean(
+        sharedBrowserReady
+        && env.AFFILIATE_GITHUB_APP_ID
+        && env.AFFILIATE_GITHUB_APP_PRIVATE_KEY
+        && env.AFFILIATE_GITHUB_OWNER
+        && env.AFFILIATE_GITHUB_REPO
+        && env.AFFILIATE_GITHUB_BASE_BRANCH
+        && env.AFFILIATE_READ_MASTER_SECRET
+        && env.AFFILIATE_READ_RATE_LIMITER
+        && env.AFFILIATE_WRITE_RATE_LIMITER
+        && env.AFFILIATE_NONCE_STORE,
+      );
+      return jsonResponse({
+        ok: true,
+        ready: logoReady && affiliateReady,
+        logo_ready: logoReady,
+        affiliate_ready: affiliateReady,
+        version: API_VERSION,
+      }, 200, requestOrigin, env);
+    }
+
+    if (
+      request.method === 'POST'
+      && url.pathname === '/affiliate-catalog/read'
+      && url.search === ''
+    ) {
+      return await handleAffiliateSiteRead(request, env, fetchImpl);
     }
 
     const origin = requireOrigin(request, env);
@@ -318,12 +518,22 @@ export async function handleRequest(request, env, context = {}, fetchImpl = fetc
     if (request.method === 'POST' && url.pathname === '/upload') {
       return await handleUpload(request, env, origin, fetchImpl);
     }
+    if (request.method === 'GET' && url.pathname === '/affiliate-catalog') {
+      return await handleAffiliateCatalogGet(request, env, origin, fetchImpl);
+    }
+    if (request.method === 'POST' && url.pathname === '/affiliate-catalog/propose') {
+      return await handleAffiliateCatalogProposal(request, env, origin, fetchImpl);
+    }
     throw new ApiError(404, 'not_found', 'Endpoint не найден.');
   } catch (error) {
     if (error instanceof ApiError) {
       return jsonResponse({ ok: false, code: error.code, message: error.message }, error.status, requestOrigin, env);
     }
-    if (error instanceof CatalogError || error instanceof ImageValidationError) {
+    if (
+      error instanceof CatalogError
+      || error instanceof AffiliateCatalogError
+      || error instanceof ImageValidationError
+    ) {
       return jsonResponse({ ok: false, code: error.code, message: error.message }, 400, requestOrigin, env);
     }
     if (error instanceof GitHubApiError) {
@@ -338,6 +548,8 @@ export default {
     return handleRequest(request, env, context, fetch);
   },
 };
+
+export { AffiliateNonceStore };
 
 export const limits = {
   maxImageBytes: MAX_IMAGE_BYTES,
