@@ -1,10 +1,7 @@
 import { buildCatalogUpdate, CatalogError, serializeCatalog, validateCatalog } from '../lib/catalog.js';
 import {
   createSessionToken,
-  deriveAffiliateSiteSecret,
-  normalizeAffiliateSiteId,
   shortDigest,
-  verifyAffiliateSiteSignature,
   verifyPassword,
   verifySessionToken,
 } from '../lib/crypto.js';
@@ -22,7 +19,7 @@ import {
   getApprovedAffiliateCommit,
   setApprovedAffiliateCommit,
 } from './affiliate-catalog-state.js';
-import { AffiliateNonceStore, consumeAffiliateNonce } from './affiliate-nonce.js';
+import { AffiliateNonceStore } from './affiliate-nonce.js';
 import {
   createAffiliateCatalogPullRequest,
   createUploadPullRequest,
@@ -34,13 +31,11 @@ import {
   mergeAffiliateCatalogProposal,
 } from './github.js';
 
-const API_VERSION = '1.2.0';
+const API_VERSION = '1.3.0';
 const encoder = new TextEncoder();
 const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
 const MAX_METADATA_BYTES = 64 * 1024;
 const MAX_AFFILIATE_REQUEST_BYTES = 128 * 1024;
-const AFFILIATE_REQUEST_MAX_AGE_SECONDS = 55;
-const AFFILIATE_REQUEST_MAX_FUTURE_SECONDS = 5;
 const TURNSTILE_TEST_SECRET = '1x0000000000000000000000000000000AA';
 
 class ApiError extends Error {
@@ -77,6 +72,7 @@ function securityHeaders() {
     'Cache-Control': 'no-store',
     'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
     'Referrer-Policy': 'no-referrer',
+    'X-Robots-Tag': 'noindex, nofollow, noarchive',
     'X-Content-Type-Options': 'nosniff',
   };
 }
@@ -506,79 +502,13 @@ async function handleAffiliateCatalogPublish(request, env, origin, number, fetch
   }, 200, origin, env);
 }
 
-function deniedAffiliateSites(env) {
-  return new Set(
-    String(env.AFFILIATE_SITE_DENYLIST || '')
-      .split(',')
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
-async function requireAffiliateSite(request, env) {
-  requireConfigured(env, ['AFFILIATE_READ_MASTER_SECRET']);
-
-  const fingerprint = await shortDigest([
-    request.headers.get('CF-Connecting-IP') || 'unknown',
-  ].join('|'));
-  await enforceRateLimit(env.AFFILIATE_READ_RATE_LIMITER, `site-auth:${fingerprint}`);
-
-  const declaredLength = contentLength(request);
-  if (
-    (declaredLength !== null && declaredLength !== 0)
-    || (declaredLength === null && request.body !== null)
-  ) {
-    throw new ApiError(400, 'affiliate_body_not_empty', 'Этот запрос не должен содержать тело.');
+async function handleWordPressCatalogRead(request, env, fetchImpl) {
+  const userAgent = request.headers.get('User-Agent') || '';
+  if (!/^Brand-Tables-Manager\/[0-9]+(?:\.[0-9]+){1,2}(?:[-+][A-Za-z0-9.-]+)?$/.test(userAgent)) {
+    throw new ApiError(403, 'wordpress_client_required', 'Endpoint доступен только серверному клиенту Brand Tables Manager.');
   }
-
-  let siteId;
-  try {
-    siteId = normalizeAffiliateSiteId(request.headers.get('X-BTM-Site'));
-  } catch {
-    throw new ApiError(401, 'affiliate_auth_invalid', 'Авторизация affiliate-каталога отклонена.');
-  }
-  if (deniedAffiliateSites(env).has(siteId)) {
-    throw new ApiError(403, 'affiliate_site_denied', 'Доступ этого сайта к affiliate-каталогу отключён.');
-  }
-
-  const timestamp = Number(request.headers.get('X-BTM-Timestamp'));
-  const nonce = request.headers.get('X-BTM-Nonce') || '';
-  const signature = request.headers.get('X-BTM-Signature') || '';
-  const now = Math.floor(Date.now() / 1000);
-  if (
-    !Number.isInteger(timestamp)
-    || timestamp < now - AFFILIATE_REQUEST_MAX_AGE_SECONDS
-    || timestamp > now + AFFILIATE_REQUEST_MAX_FUTURE_SECONDS
-  ) {
-    throw new ApiError(401, 'affiliate_auth_expired', 'Авторизация affiliate-каталога истекла.');
-  }
-
-  let siteSecret;
-  try {
-    siteSecret = await deriveAffiliateSiteSecret(env.AFFILIATE_READ_MASTER_SECRET, siteId);
-  } catch {
-    throw new ApiError(503, 'affiliate_auth_unavailable', 'Авторизация affiliate-каталога временно недоступна.');
-  }
-  const signatureValid = await verifyAffiliateSiteSignature(signature, siteSecret, siteId, timestamp, nonce);
-  if (!signatureValid) {
-    throw new ApiError(401, 'affiliate_auth_invalid', 'Авторизация affiliate-каталога отклонена.');
-  }
-
-  let nonceAccepted;
-  try {
-    nonceAccepted = await consumeAffiliateNonce(env.AFFILIATE_NONCE_STORE, siteId, nonce);
-  } catch {
-    throw new ApiError(503, 'affiliate_nonce_unavailable', 'Защита affiliate-каталога временно недоступна.');
-  }
-  if (!nonceAccepted) {
-    throw new ApiError(409, 'affiliate_replay_rejected', 'Повторный запрос affiliate-каталога отклонён.');
-  }
-  await enforceRateLimit(env.AFFILIATE_READ_RATE_LIMITER, `site:${siteId}`);
-  return siteId;
-}
-
-async function handleAffiliateSiteRead(request, env, fetchImpl) {
-  await requireAffiliateSite(request, env);
+  const fingerprint = await shortDigest(request.headers.get('CF-Connecting-IP') || 'unknown');
+  await enforceRateLimit(env.AFFILIATE_READ_RATE_LIMITER, `wordpress-catalog:${fingerprint}`);
   const result = await approvedAffiliateSnapshot(env, fetchImpl, 'read');
   return jsonResponse({ ok: true, catalog: result.catalog }, 200, null, env);
 }
@@ -619,10 +549,8 @@ export async function handleRequest(request, env, context = {}, fetchImpl = fetc
         && env.AFFILIATE_GITHUB_OWNER
         && env.AFFILIATE_GITHUB_REPO
         && env.AFFILIATE_GITHUB_BASE_BRANCH
-        && env.AFFILIATE_READ_MASTER_SECRET
         && env.AFFILIATE_READ_RATE_LIMITER
         && env.AFFILIATE_WRITE_RATE_LIMITER
-        && env.AFFILIATE_NONCE_STORE
         && env.AFFILIATE_APPROVER_LOGIN
         && env.AFFILIATE_APPROVED_SHA
         && env.AFFILIATE_CATALOG_STATE,
@@ -636,12 +564,11 @@ export async function handleRequest(request, env, context = {}, fetchImpl = fetc
       }, 200, requestOrigin, env);
     }
 
-    if (
-      request.method === 'POST'
-      && url.pathname === '/affiliate-catalog/read'
-      && url.search === ''
-    ) {
-      return await handleAffiliateSiteRead(request, env, fetchImpl);
+    if (url.pathname === '/affiliate-catalog/read' && url.search === '') {
+      if (request.method !== 'GET') {
+        throw new ApiError(405, 'method_not_allowed', 'Endpoint поддерживает только GET.');
+      }
+      return await handleWordPressCatalogRead(request, env, fetchImpl);
     }
 
     const origin = requireOrigin(request, env);

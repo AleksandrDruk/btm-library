@@ -3,10 +3,8 @@ import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
 import {
   bytesToBase64,
-  createAffiliateSiteSignature,
   createPasswordHash,
   createSessionToken,
-  deriveAffiliateSiteSecret,
 } from '../lib/crypto.js';
 import {
   buildAffiliateCatalogUpdate,
@@ -40,29 +38,11 @@ async function environment() {
     TURNSTILE_HOSTNAME: 'example.test',
     LOGIN_RATE_LIMITER: { limit: async () => ({ success: true }) },
     UPLOAD_RATE_LIMITER: { limit: async () => ({ success: true }) },
-    AFFILIATE_READ_MASTER_SECRET: bytesToBase64(crypto.getRandomValues(new Uint8Array(48))),
     AFFILIATE_READ_RATE_LIMITER: { limit: async () => ({ success: true }) },
     AFFILIATE_WRITE_RATE_LIMITER: { limit: async () => ({ success: true }) },
-    AFFILIATE_NONCE_STORE: nonceNamespace(),
     AFFILIATE_APPROVER_LOGIN: 'AleksandrDruk',
     AFFILIATE_APPROVED_SHA: APPROVED_SHA,
     AFFILIATE_CATALOG_STATE: catalogStateNamespace(APPROVED_SHA),
-  };
-}
-
-function nonceNamespace() {
-  const accepted = new Set();
-  return {
-    idFromName: (name) => name,
-    get: (id) => ({
-      fetch: async () => {
-        if (accepted.has(id)) {
-          return new Response(null, { status: 409 });
-        }
-        accepted.add(id);
-        return new Response(null, { status: 204 });
-      },
-    }),
   };
 }
 
@@ -540,30 +520,48 @@ test('affiliate approval gate rejects a stale review and a failed required check
   assert.equal(env.AFFILIATE_CATALOG_STATE.current(), APPROVED_SHA);
 });
 
-test('rejects an expired signed WordPress catalog request before repository access', async () => {
+test('affiliate catalog read endpoint accepts only GET', async () => {
   const env = await environment();
-  const siteId = 'example.test';
-  const timestamp = Math.floor(Date.now() / 1000) - 600;
-  const nonce = 'abcdefghijklmnopqrstuv';
-  const siteSecret = await deriveAffiliateSiteSecret(env.AFFILIATE_READ_MASTER_SECRET, siteId);
-  const signature = await createAffiliateSiteSignature(siteSecret, siteId, timestamp, nonce);
   const response = await handleRequest(new Request('https://api.example.test/affiliate-catalog/read', {
     method: 'POST',
-    headers: {
-      'X-BTM-Site': siteId,
-      'X-BTM-Timestamp': String(timestamp),
-      'X-BTM-Nonce': nonce,
-      'X-BTM-Signature': signature,
-    },
   }), env, {}, async () => {
     throw new Error('GitHub must not be called');
   });
 
-  assert.equal(response.status, 401);
-  assert.equal((await response.json()).code, 'affiliate_auth_expired');
+  assert.equal(response.status, 405);
+  assert.equal((await response.json()).code, 'method_not_allowed');
 });
 
-test('serves the private affiliate catalog to a correctly signed WordPress request', async () => {
+test('rate-limits zero-config catalog reads before repository access', async () => {
+  const env = await environment();
+  env.AFFILIATE_READ_RATE_LIMITER = { limit: async () => ({ success: false }) };
+  const response = await handleRequest(new Request('https://api.example.test/affiliate-catalog/read', {
+    headers: {
+      'CF-Connecting-IP': '203.0.113.10',
+      'User-Agent': 'Brand-Tables-Manager/2.2.0',
+    },
+  }), env, {}, async () => {
+    throw new Error('GitHub must not be called after rate-limit denial');
+  });
+
+  assert.equal(response.status, 429);
+  assert.equal((await response.json()).code, 'rate_limited');
+});
+
+test('does not expose the catalog to a generic browser or crawler client', async () => {
+  const env = await environment();
+  const response = await handleRequest(new Request('https://api.example.test/affiliate-catalog/read', {
+    headers: { 'User-Agent': 'Googlebot/2.1' },
+  }), env, {}, async () => {
+    throw new Error('GitHub must not be called for a non-BTM client');
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, 'wordpress_client_required');
+  assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow, noarchive');
+});
+
+test('serves the approved affiliate catalog to a zero-config WordPress GET request', async () => {
   const env = await environment();
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
   Object.assign(env, {
@@ -590,12 +588,6 @@ test('serves the private affiliate catalog to a correctly signed WordPress reque
       }],
     }],
   };
-  const siteId = 'example.test';
-  const timestamp = Math.floor(Date.now() / 1000);
-  const nonce = 'abcdefghijklmnopqrstuv';
-  const siteSecret = await deriveAffiliateSiteSecret(env.AFFILIATE_READ_MASTER_SECRET, siteId);
-  const signature = await createAffiliateSiteSignature(siteSecret, siteId, timestamp, nonce);
-
   const fetchMock = async (url, options = {}) => {
     const parsed = new URL(url);
     const pathname = parsed.pathname;
@@ -611,32 +603,24 @@ test('serves the private affiliate catalog to a correctly signed WordPress reque
     throw new Error(`Unexpected request: ${pathname}`);
   };
 
-  const response = await handleRequest(new Request('https://api.example.test/affiliate-catalog/read', {
-    method: 'POST',
-    headers: {
-      'X-BTM-Site': siteId,
-      'X-BTM-Timestamp': String(timestamp),
-      'X-BTM-Nonce': nonce,
-      'X-BTM-Signature': signature,
-    },
-  }), env, {}, fetchMock);
+  const response = await handleRequest(
+    new Request('https://api.example.test/affiliate-catalog/read', {
+      headers: {
+        Origin: 'https://example.test',
+        'User-Agent': 'Brand-Tables-Manager/2.2.0',
+      },
+    }),
+    env,
+    {},
+    fetchMock,
+  );
   const body = await response.json();
 
   assert.equal(response.status, 200);
   assert.equal(body.ok, true);
   assert.deepEqual(body.catalog, catalog);
-
-  const replay = await handleRequest(new Request('https://api.example.test/affiliate-catalog/read', {
-    method: 'POST',
-    headers: {
-      'X-BTM-Site': siteId,
-      'X-BTM-Timestamp': String(timestamp),
-      'X-BTM-Nonce': nonce,
-      'X-BTM-Signature': signature,
-    },
-  }), env, {}, async () => {
-    throw new Error('A replay must be rejected before GitHub access');
-  });
-  assert.equal(replay.status, 409);
-  assert.equal((await replay.json()).code, 'affiliate_replay_rejected');
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow, noarchive');
+  assert.doesNotMatch(JSON.stringify(body), /github\.com/i);
 });

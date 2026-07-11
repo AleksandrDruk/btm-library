@@ -19,7 +19,6 @@ const javascriptFiles = [
   'scripts/dev-server.mjs',
   'scripts/generate-password-hash.mjs',
   'scripts/generate-session-secret.mjs',
-  'scripts/generate-site-credential.mjs',
   'scripts/inspect-images.mjs',
   'scripts/validate-catalog.mjs',
 ];
