@@ -25,6 +25,8 @@
     "AFFILIATE_GITHUB_OWNER": "AleksandrDruk",
     "AFFILIATE_GITHUB_REPO": "btm-affiliate-library",
     "AFFILIATE_GITHUB_BASE_BRANCH": "main",
+    "AFFILIATE_APPROVER_LOGIN": "AleksandrDruk",
+    "AFFILIATE_APPROVED_SHA": "e7b320413667e9d381fb0b22aab0c2c0180692c3",
     "TURNSTILE_HOSTNAME": "aleksandrdruk.github.io",
     "SESSION_TTL_SECONDS": "1800",
     "SESSION_VERSION": "1"
@@ -68,6 +70,10 @@
       {
         "name": "AFFILIATE_NONCE_STORE",
         "class_name": "AffiliateNonceStore"
+      },
+      {
+        "name": "AFFILIATE_CATALOG_STATE",
+        "class_name": "AffiliateCatalogState"
       }
     ]
   },
@@ -75,6 +81,10 @@
     {
       "tag": "affiliate-nonce-v1",
       "new_sqlite_classes": ["AffiliateNonceStore"]
+    },
+    {
+      "tag": "affiliate-catalog-state-v1",
+      "new_sqlite_classes": ["AffiliateCatalogState"]
     }
   ],
   "observability": {

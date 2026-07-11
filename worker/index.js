@@ -13,17 +13,27 @@ import {
   buildAffiliateCatalogUpdate,
   serializeAffiliateCatalog,
   validateAffiliateCatalog,
+  validateAffiliateCatalogTransition,
 } from '../lib/affiliate-catalog.js';
 import { ImageValidationError, inspectImage, MAX_IMAGE_BYTES } from '../lib/image.js';
+import {
+  AffiliateCatalogState,
+  getApprovedAffiliateCommit,
+  setApprovedAffiliateCommit,
+} from './affiliate-catalog-state.js';
 import { AffiliateNonceStore, consumeAffiliateNonce } from './affiliate-nonce.js';
 import {
   createAffiliateCatalogPullRequest,
   createUploadPullRequest,
+  deleteAffiliateCatalogProposalBranch,
+  getAffiliateCatalogProposal,
   getRepositorySnapshot,
   GitHubApiError,
+  listAffiliateCatalogProposals,
+  mergeAffiliateCatalogProposal,
 } from './github.js';
 
-const API_VERSION = '1.1.0';
+const API_VERSION = '1.2.0';
 const encoder = new TextEncoder();
 const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
 const MAX_METADATA_BYTES = 64 * 1024;
@@ -318,26 +328,50 @@ function requireAffiliateRepository(env) {
     'AFFILIATE_GITHUB_OWNER',
     'AFFILIATE_GITHUB_REPO',
     'AFFILIATE_GITHUB_BASE_BRANCH',
+    'AFFILIATE_APPROVER_LOGIN',
+    'AFFILIATE_APPROVED_SHA',
+    'AFFILIATE_CATALOG_STATE',
   ]);
 }
 
-async function affiliateRepositorySnapshot(env, fetchImpl, access) {
+async function approvedAffiliateCommit(env) {
+  requireAffiliateRepository(env);
+  try {
+    return await getApprovedAffiliateCommit(env.AFFILIATE_CATALOG_STATE, env.AFFILIATE_APPROVED_SHA);
+  } catch {
+    throw new ApiError(503, 'affiliate_approval_state_unavailable', 'Состояние опубликованного каталога временно недоступно.');
+  }
+}
+
+function validatedAffiliateSnapshot(snapshot) {
+  const catalog = validateAffiliateCatalog(snapshot.catalog);
+  if (serializeAffiliateCatalog(catalog) !== snapshot.catalogText) {
+    throw new AffiliateCatalogError('catalog_not_canonical', 'Affiliate catalog должен использовать canonical формат.');
+  }
+  return { snapshot, catalog };
+}
+
+async function affiliateRepositorySnapshot(env, fetchImpl, access, ref = '') {
   requireAffiliateRepository(env);
   const snapshot = await getRepositorySnapshot(env, fetchImpl, {
     prefix: 'AFFILIATE_GITHUB',
     access,
     catalogPath: 'catalog.json',
+    ...(ref ? { ref } : {}),
   });
-  return {
-    snapshot,
-    catalog: validateAffiliateCatalog(snapshot.catalog),
-  };
+  return validatedAffiliateSnapshot(snapshot);
+}
+
+async function approvedAffiliateSnapshot(env, fetchImpl, access = 'read') {
+  const approvedSha = await approvedAffiliateCommit(env);
+  const result = await affiliateRepositorySnapshot(env, fetchImpl, access, approvedSha);
+  return { ...result, approvedSha };
 }
 
 async function handleAffiliateCatalogGet(request, env, origin, fetchImpl) {
   const session = await requireSession(request, env);
   await enforceRateLimit(env.AFFILIATE_READ_RATE_LIMITER, `browser:${session.nonce}`);
-  const result = await affiliateRepositorySnapshot(env, fetchImpl, 'read');
+  const result = await approvedAffiliateSnapshot(env, fetchImpl, 'read');
   return jsonResponse({ ok: true, catalog: result.catalog }, 200, origin, env);
 }
 
@@ -356,7 +390,15 @@ async function handleAffiliateCatalogProposal(request, env, origin, fetchImpl) {
     throw new ApiError(400, 'affiliate_request_invalid', 'Параметры affiliate-каталога некорректны.');
   }
 
+  const approvedSha = await approvedAffiliateCommit(env);
   const current = await affiliateRepositorySnapshot(env, fetchImpl, 'write');
+  if (current.snapshot.baseCommitSha !== approvedSha) {
+    throw new ApiError(
+      409,
+      'affiliate_main_not_approved',
+      'main содержит неподтверждённое изменение. Создание нового PR остановлено.',
+    );
+  }
   if (current.catalog.catalog_version !== body.catalog_version) {
     throw new ApiError(409, 'affiliate_catalog_changed', 'Каталог изменился. Обновите список и повторите действие.');
   }
@@ -374,6 +416,85 @@ async function handleAffiliateCatalogProposal(request, env, origin, fetchImpl) {
   }
 
   return jsonResponse({ ok: true, pull_request: pullRequest }, 201, origin, env);
+}
+
+async function handleAffiliateCatalogProposals(request, env, origin, fetchImpl) {
+  const session = await requireSession(request, env);
+  await enforceRateLimit(env.AFFILIATE_READ_RATE_LIMITER, `proposals:${session.nonce}`);
+  const approvedSha = await approvedAffiliateCommit(env);
+  const proposals = await listAffiliateCatalogProposals(
+    env,
+    approvedSha,
+    String(env.AFFILIATE_APPROVER_LOGIN),
+    fetchImpl,
+  );
+  return jsonResponse({ ok: true, proposals }, 200, origin, env);
+}
+
+function affiliatePublishNumber(pathname) {
+  const match = pathname.match(/^\/affiliate-catalog\/proposals\/([1-9][0-9]{0,8})\/publish$/);
+  return match ? Number(match[1]) : null;
+}
+
+async function handleAffiliateCatalogPublish(request, env, origin, number, fetchImpl) {
+  const session = await requireSession(request, env);
+  await enforceRateLimit(env.AFFILIATE_WRITE_RATE_LIMITER, `publish:${session.nonce}`);
+  const body = await readJson(request, 4096);
+  const expectedHeadSha = String(body?.head_sha || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/.test(expectedHeadSha)) {
+    throw new ApiError(400, 'affiliate_publish_request_invalid', 'Параметры публикации некорректны.');
+  }
+
+  const approvedSha = await approvedAffiliateCommit(env);
+  const approval = await getAffiliateCatalogProposal(
+    env,
+    number,
+    approvedSha,
+    String(env.AFFILIATE_APPROVER_LOGIN),
+    fetchImpl,
+  );
+  if (approval.gate.head_sha !== expectedHeadSha) {
+    throw new ApiError(409, 'affiliate_proposal_changed', 'PR изменился. Обновите статус перед публикацией.');
+  }
+  if (!approval.gate.publishable) {
+    throw new ApiError(409, approval.gate.code, approval.gate.message);
+  }
+
+  const [base, candidate] = await Promise.all([
+    affiliateRepositorySnapshot(env, fetchImpl, 'approval', approvedSha),
+    affiliateRepositorySnapshot(env, fetchImpl, 'approval', expectedHeadSha),
+  ]);
+  try {
+    validateAffiliateCatalogTransition(base.catalog, candidate.catalog, { requireChange: true });
+  } catch (error) {
+    if (error instanceof AffiliateCatalogError) {
+      throw new ApiError(409, error.code, error.message);
+    }
+    throw error;
+  }
+
+  const merged = await mergeAffiliateCatalogProposal(approval, fetchImpl);
+  try {
+    await setApprovedAffiliateCommit(env.AFFILIATE_CATALOG_STATE, merged.sha);
+  } catch {
+    throw new ApiError(
+      503,
+      'affiliate_approval_state_write_failed',
+      'PR объединён, но approved state не записан. Каталог остаётся на предыдущей версии; не меняйте main до ручного восстановления состояния.',
+    );
+  }
+  try {
+    await deleteAffiliateCatalogProposalBranch(approval, fetchImpl);
+  } catch {
+    // The catalog is already safely approved; stale branch cleanup is non-critical.
+  }
+
+  return jsonResponse({
+    ok: true,
+    published: true,
+    pull_request: { number: approval.gate.number, url: approval.gate.url },
+    catalog: candidate.catalog,
+  }, 200, origin, env);
 }
 
 function deniedAffiliateSites(env) {
@@ -449,7 +570,7 @@ async function requireAffiliateSite(request, env) {
 
 async function handleAffiliateSiteRead(request, env, fetchImpl) {
   await requireAffiliateSite(request, env);
-  const result = await affiliateRepositorySnapshot(env, fetchImpl, 'read');
+  const result = await approvedAffiliateSnapshot(env, fetchImpl, 'read');
   return jsonResponse({ ok: true, catalog: result.catalog }, 200, null, env);
 }
 
@@ -492,7 +613,10 @@ export async function handleRequest(request, env, context = {}, fetchImpl = fetc
         && env.AFFILIATE_READ_MASTER_SECRET
         && env.AFFILIATE_READ_RATE_LIMITER
         && env.AFFILIATE_WRITE_RATE_LIMITER
-        && env.AFFILIATE_NONCE_STORE,
+        && env.AFFILIATE_NONCE_STORE
+        && env.AFFILIATE_APPROVER_LOGIN
+        && env.AFFILIATE_APPROVED_SHA
+        && env.AFFILIATE_CATALOG_STATE,
       );
       return jsonResponse({
         ok: true,
@@ -524,6 +648,13 @@ export async function handleRequest(request, env, context = {}, fetchImpl = fetc
     if (request.method === 'POST' && url.pathname === '/affiliate-catalog/propose') {
       return await handleAffiliateCatalogProposal(request, env, origin, fetchImpl);
     }
+    if (request.method === 'GET' && url.pathname === '/affiliate-catalog/proposals') {
+      return await handleAffiliateCatalogProposals(request, env, origin, fetchImpl);
+    }
+    const publishNumber = request.method === 'POST' ? affiliatePublishNumber(url.pathname) : null;
+    if (publishNumber !== null) {
+      return await handleAffiliateCatalogPublish(request, env, origin, publishNumber, fetchImpl);
+    }
     throw new ApiError(404, 'not_found', 'Endpoint не найден.');
   } catch (error) {
     if (error instanceof ApiError) {
@@ -549,7 +680,7 @@ export default {
   },
 };
 
-export { AffiliateNonceStore };
+export { AffiliateCatalogState, AffiliateNonceStore };
 
 export const limits = {
   maxImageBytes: MAX_IMAGE_BYTES,

@@ -2,6 +2,8 @@ import { base64ToBytes, bytesToBase64, bytesToBase64Url } from '../lib/crypto.js
 
 const API_BASE = 'https://api.github.com';
 const API_VERSION = '2026-03-10';
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
+const REQUIRED_AFFILIATE_CHECKS = ['code-checks', 'validate-catalog'];
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -158,7 +160,9 @@ function installationHeaders(token) {
 async function installationToken(configuration, access, fetchImpl) {
   const permissions = access === 'read'
     ? { contents: 'read' }
-    : { contents: 'write', pull_requests: 'write' };
+    : access === 'approval'
+      ? { checks: 'read', contents: 'write', pull_requests: 'write' }
+      : { contents: 'write', pull_requests: 'write' };
   const cacheKey = `${configuration.appId}:${configuration.owner}/${configuration.repo}:${access}`;
   const now = Date.now();
   const cachedToken = cachedTokens.get(cacheKey);
@@ -213,22 +217,29 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch, options = {}
     repo: configuration.repo,
     branch: configuration.branch,
   };
-  const access = options.access === 'read' ? 'read' : 'write';
+  const access = ['read', 'approval'].includes(options.access) ? options.access : 'write';
   const catalogPath = String(options.catalogPath || 'catalog.json');
   if (!/^[A-Za-z0-9._/-]+$/.test(catalogPath) || catalogPath.includes('..') || catalogPath.startsWith('/')) {
     throw new GitHubApiError('github_catalog_path_invalid', 'GitHub catalog path некорректен.', 503);
   }
   const token = await installationToken(configuration, access, fetchImpl);
-  const ref = await apiRequest(
-    coordinates,
-    token,
-    `/git/ref/heads/${coordinates.branch.split('/').map(encodeURIComponent).join('/')}`,
-    {},
-    fetchImpl,
-  );
-  const baseCommitSha = ref?.object?.sha;
-  if (typeof baseCommitSha !== 'string') {
-    throw new GitHubApiError('github_ref_invalid', 'GitHub не вернул SHA основной ветки.', 502);
+  const requestedRef = options.ref === undefined ? '' : String(options.ref).trim().toLowerCase();
+  if (requestedRef && !SHA_PATTERN.test(requestedRef)) {
+    throw new GitHubApiError('github_ref_invalid', 'GitHub commit SHA имеет некорректный формат.', 503);
+  }
+  let baseCommitSha = requestedRef;
+  if (!baseCommitSha) {
+    const ref = await apiRequest(
+      coordinates,
+      token,
+      `/git/ref/heads/${coordinates.branch.split('/').map(encodeURIComponent).join('/')}`,
+      {},
+      fetchImpl,
+    );
+    baseCommitSha = ref?.object?.sha;
+    if (typeof baseCommitSha !== 'string') {
+      throw new GitHubApiError('github_ref_invalid', 'GitHub не вернул SHA основной ветки.', 502);
+    }
   }
 
   const encodedCatalogPath = catalogPath.split('/').map(encodeURIComponent).join('/');
@@ -241,9 +252,10 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch, options = {}
   }
 
   let catalog;
+  let catalogText;
   try {
-    const content = decoder.decode(base64ToBytes(catalogFile.content.replace(/\s+/g, '')));
-    catalog = JSON.parse(content);
+    catalogText = decoder.decode(base64ToBytes(catalogFile.content.replace(/\s+/g, '')));
+    catalog = JSON.parse(catalogText);
   } catch {
     throw new GitHubApiError('github_catalog_invalid', 'Актуальный catalog.json содержит некорректный JSON.', 502);
   }
@@ -255,7 +267,257 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch, options = {}
     baseTreeSha: commit.tree.sha,
     catalogPath,
     catalog,
+    catalogText,
   };
+}
+
+function affiliateApprovalContext(env) {
+  const configuration = repoConfiguration(env, 'AFFILIATE_GITHUB');
+  return {
+    configuration,
+    coordinates: {
+      owner: configuration.owner,
+      repo: configuration.repo,
+      branch: configuration.branch,
+    },
+  };
+}
+
+function validPullNumber(value) {
+  return Number.isInteger(value) && value >= 1 && value <= 1_000_000_000;
+}
+
+function safePullUrl(coordinates, value, number) {
+  const expected = `https://github.com/${coordinates.owner}/${coordinates.repo}/pull/${number}`;
+  return value === expected || value === `${expected}/` ? expected : '';
+}
+
+function latestById(values) {
+  return [...values].sort((left, right) => Number(right?.id || 0) - Number(left?.id || 0))[0] || null;
+}
+
+function checkState(checkRuns, name, headSha) {
+  const run = latestById(checkRuns.filter((candidate) => (
+    candidate?.name === name
+    && candidate?.head_sha === headSha
+    && candidate?.app?.slug === 'github-actions'
+  )));
+  if (!run || run.status !== 'completed') return 'pending';
+  return run.conclusion === 'success' ? 'success' : 'failed';
+}
+
+function gateResult(pull, coordinates, approvedSha, details) {
+  const number = Number(pull?.number);
+  const title = typeof pull?.title === 'string' ? pull.title.slice(0, 180) : `Affiliate catalog PR #${number}`;
+  const url = safePullUrl(coordinates, pull?.html_url, number);
+  const headSha = String(pull?.head?.sha || '').toLowerCase();
+  const checks = Object.fromEntries(
+    REQUIRED_AFFILIATE_CHECKS.map((name) => [name, checkState(details.checkRuns, name, headSha)]),
+  );
+  const latestReview = latestById(details.reviews.filter((review) => (
+    review?.user?.login === details.approverLogin
+  )));
+  const approved = latestReview?.state === 'APPROVED' && latestReview?.commit_id === headSha;
+
+  let code = 'ready';
+  let message = 'Проверки пройдены, владелец подтвердил точный commit.';
+  if (
+    !validPullNumber(number)
+    || !url
+    || pull?.state !== 'open'
+    || pull?.draft === true
+    || pull?.base?.ref !== coordinates.branch
+    || pull?.base?.repo?.full_name !== `${coordinates.owner}/${coordinates.repo}`
+    || pull?.head?.repo?.full_name !== `${coordinates.owner}/${coordinates.repo}`
+    || !String(pull?.head?.ref || '').startsWith('affiliate-links/')
+    || !SHA_PATTERN.test(headSha)
+    || pull?.commits !== 1
+  ) {
+    code = 'proposal_boundary_invalid';
+    message = 'PR не соответствует защищённому affiliate proposal contract.';
+  } else if (details.mainSha !== approvedSha) {
+    code = 'main_not_approved';
+    message = 'main содержит неподтверждённое изменение. Публикация остановлена.';
+  } else if (
+    details.commit?.parents?.length !== 1
+    || details.commit.parents[0]?.sha !== approvedSha
+  ) {
+    code = 'proposal_stale';
+    message = 'PR создан не от текущего опубликованного commit.';
+  } else if (
+    pull?.changed_files !== 1
+    || details.files.length !== 1
+    || details.files[0]?.filename !== 'catalog.json'
+    || details.files[0]?.status !== 'modified'
+  ) {
+    code = 'proposal_scope_invalid';
+    message = 'PR изменяет что-то кроме catalog.json.';
+  } else if (Object.values(checks).some((value) => value === 'failed')) {
+    code = 'checks_failed';
+    message = 'Одна из обязательных проверок завершилась ошибкой.';
+  } else if (Object.values(checks).some((value) => value !== 'success')) {
+    code = 'checks_pending';
+    message = 'Ожидаются validate-catalog и code-checks.';
+  } else if (!approved) {
+    code = 'review_required';
+    message = `Нужен APPROVED review от ${details.approverLogin} для текущего commit.`;
+  }
+
+  return {
+    number,
+    title,
+    url,
+    head_sha: headSha,
+    checks,
+    approved,
+    publishable: code === 'ready',
+    code,
+    message,
+    created_at: typeof pull?.created_at === 'string' ? pull.created_at : '',
+  };
+}
+
+async function affiliateGateDetails(context, token, pull, approvedSha, approverLogin, fetchImpl) {
+  const coordinates = context.coordinates;
+  const number = Number(pull?.number);
+  if (!validPullNumber(number)) {
+    throw new GitHubApiError('github_pull_invalid', 'GitHub PR имеет некорректный номер.', 502);
+  }
+  const headSha = String(pull?.head?.sha || '').toLowerCase();
+  if (!SHA_PATTERN.test(headSha)) {
+    return gateResult(pull, coordinates, approvedSha, {
+      approverLogin,
+      checkRuns: [],
+      commit: null,
+      files: [],
+      mainSha: '',
+      reviews: [],
+    });
+  }
+
+  const [files, reviews, checkRunsResult, commit, mainRef] = await Promise.all([
+    apiRequest(coordinates, token, `/pulls/${number}/files?per_page=100`, {}, fetchImpl),
+    apiRequest(coordinates, token, `/pulls/${number}/reviews?per_page=100`, {}, fetchImpl),
+    apiRequest(coordinates, token, `/commits/${headSha}/check-runs?per_page=100`, {}, fetchImpl),
+    apiRequest(coordinates, token, `/git/commits/${headSha}`, {}, fetchImpl),
+    apiRequest(
+      coordinates,
+      token,
+      `/git/ref/heads/${coordinates.branch.split('/').map(encodeURIComponent).join('/')}`,
+      {},
+      fetchImpl,
+    ),
+  ]);
+
+  return gateResult(pull, coordinates, approvedSha, {
+    approverLogin,
+    checkRuns: Array.isArray(checkRunsResult?.check_runs) ? checkRunsResult.check_runs : [],
+    commit,
+    files: Array.isArray(files) ? files : [],
+    mainSha: String(mainRef?.object?.sha || '').toLowerCase(),
+    reviews: Array.isArray(reviews) ? reviews : [],
+  });
+}
+
+export async function listAffiliateCatalogProposals(env, approvedSha, approverLogin, fetchImpl = fetch) {
+  if (!SHA_PATTERN.test(approvedSha) || !/^[A-Za-z0-9-]{1,39}$/.test(approverLogin)) {
+    throw new GitHubApiError('github_approval_config_invalid', 'Affiliate approval config некорректен.', 503);
+  }
+  const context = affiliateApprovalContext(env);
+  const token = await installationToken(context.configuration, 'approval', fetchImpl);
+  const pulls = await apiRequest(
+    context.coordinates,
+    token,
+    `/pulls?state=open&base=${encodeURIComponent(context.coordinates.branch)}&sort=created&direction=desc&per_page=10`,
+    {},
+    fetchImpl,
+  );
+  const candidates = (Array.isArray(pulls) ? pulls : [])
+    .filter((pull) => String(pull?.head?.ref || '').startsWith('affiliate-links/'));
+  return Promise.all(
+    candidates.map(async (summary) => {
+      const pull = await apiRequest(context.coordinates, token, `/pulls/${summary.number}`, {}, fetchImpl);
+      return affiliateGateDetails(context, token, pull, approvedSha, approverLogin, fetchImpl);
+    }),
+  );
+}
+
+export async function getAffiliateCatalogProposal(env, number, approvedSha, approverLogin, fetchImpl = fetch) {
+  if (!validPullNumber(number) || !SHA_PATTERN.test(approvedSha) || !/^[A-Za-z0-9-]{1,39}$/.test(approverLogin)) {
+    throw new GitHubApiError('github_approval_config_invalid', 'Affiliate approval request некорректен.', 503);
+  }
+  const context = affiliateApprovalContext(env);
+  const token = await installationToken(context.configuration, 'approval', fetchImpl);
+  const pull = await apiRequest(context.coordinates, token, `/pulls/${number}`, {}, fetchImpl);
+  const gate = await affiliateGateDetails(context, token, pull, approvedSha, approverLogin, fetchImpl);
+  return { approvedSha, context, token, pull, gate };
+}
+
+export async function mergeAffiliateCatalogProposal(approval, fetchImpl = fetch) {
+  if (!approval?.gate?.publishable || !SHA_PATTERN.test(approval.gate.head_sha)) {
+    throw new GitHubApiError('github_approval_not_ready', 'Affiliate PR ещё не готов к публикации.', 409);
+  }
+  const result = await apiRequest(
+    approval.context.coordinates,
+    approval.token,
+    `/pulls/${approval.gate.number}/merge`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        sha: approval.gate.head_sha,
+        merge_method: 'squash',
+        commit_title: `Publish affiliate catalog PR #${approval.gate.number}`,
+        commit_message: 'Validated by BTM approval gate.',
+      }),
+    },
+    fetchImpl,
+  );
+  const mergedSha = String(result?.sha || '').toLowerCase();
+  if (result?.merged !== true || !SHA_PATTERN.test(mergedSha)) {
+    throw new GitHubApiError('github_merge_failed', 'GitHub не подтвердил публикацию affiliate PR.', 409);
+  }
+  const [candidateCommit, mergedCommit] = await Promise.all([
+    apiRequest(
+      approval.context.coordinates,
+      approval.token,
+      `/git/commits/${approval.gate.head_sha}`,
+      {},
+      fetchImpl,
+    ),
+    apiRequest(
+      approval.context.coordinates,
+      approval.token,
+      `/git/commits/${mergedSha}`,
+      {},
+      fetchImpl,
+    ),
+  ]);
+  if (
+    mergedCommit?.parents?.length !== 1
+    || mergedCommit.parents[0]?.sha !== approval.approvedSha
+    || typeof mergedCommit?.tree?.sha !== 'string'
+    || mergedCommit.tree.sha !== candidateCommit?.tree?.sha
+  ) {
+    throw new GitHubApiError(
+      'github_merge_verification_failed',
+      'main изменился во время публикации. Новый commit не одобрен и не будет показан сайтам.',
+      409,
+    );
+  }
+  return { sha: mergedSha };
+}
+
+export async function deleteAffiliateCatalogProposalBranch(approval, fetchImpl = fetch) {
+  const branch = String(approval?.pull?.head?.ref || '');
+  if (!branch.startsWith('affiliate-links/')) return false;
+  await apiRequest(
+    approval.context.coordinates,
+    approval.token,
+    `/git/refs/heads/${branch.split('/').map(encodeURIComponent).join('/')}`,
+    { method: 'DELETE' },
+    fetchImpl,
+  );
+  return true;
 }
 
 function branchName(prefix = 'uploads') {

@@ -12,7 +12,7 @@ const host = '127.0.0.1';
 const port = Number(process.env.PORT || 4173);
 const testPassword = 'test-only-password-1234567890';
 const testToken = 'test-session-token-abcdefghijklmnopqrstuvwxyz';
-const affiliateCatalog = {
+let affiliateCatalog = {
   schema_version: 1,
   catalog_version: 3,
   items: [
@@ -32,6 +32,22 @@ const affiliateCatalog = {
     },
   ],
 };
+let affiliateProposals = [
+  {
+    number: 999,
+    title: 'Update affiliate catalog',
+    url: 'https://github.com/AleksandrDruk/btm-affiliate-library/pull/999',
+    head_sha: '9999999999999999999999999999999999999999',
+    checks: {
+      'validate-catalog': 'success',
+      'code-checks': 'success',
+    },
+    approved: true,
+    publishable: true,
+    code: 'ready',
+    message: 'Checks пройдены, точный commit одобрен владельцем.',
+  },
+];
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -118,6 +134,44 @@ const server = createServer(async (request, response) => {
           number: 999,
           url: 'https://github.com/AleksandrDruk/btm-affiliate-library/pull/999',
         },
+      });
+      return;
+    }
+    if (url.pathname === '/api/affiliate-catalog/proposals' && request.method === 'GET') {
+      if (request.headers.authorization !== `Bearer ${testToken}`) {
+        json(response, 401, { ok: false, message: 'Сессия отсутствует или истекла.' });
+        return;
+      }
+      json(response, 200, { ok: true, proposals: affiliateProposals });
+      return;
+    }
+    const publishMatch = url.pathname.match(/^\/api\/affiliate-catalog\/proposals\/([1-9][0-9]*)\/publish$/);
+    if (publishMatch && request.method === 'POST') {
+      if (request.headers.authorization !== `Bearer ${testToken}`) {
+        json(response, 401, { ok: false, message: 'Сессия отсутствует или истекла.' });
+        return;
+      }
+      const payload = JSON.parse(await bodyText(request, 16 * 1024));
+      const proposalNumber = Number(publishMatch[1]);
+      const proposal = affiliateProposals.find((item) => item.number === proposalNumber);
+      if (!proposal || payload.head_sha !== proposal.head_sha || !proposal.publishable) {
+        json(response, 409, { ok: false, message: 'PR больше не готов к публикации.' });
+        return;
+      }
+      affiliateCatalog = {
+        ...affiliateCatalog,
+        catalog_version: affiliateCatalog.catalog_version + 1,
+      };
+      affiliateProposals = affiliateProposals.filter((item) => item.number !== proposalNumber);
+      json(response, 200, {
+        ok: true,
+        published: true,
+        pull_request: {
+          number: proposal.number,
+          url: proposal.url,
+          merge_commit_sha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        },
+        catalog: affiliateCatalog,
       });
       return;
     }

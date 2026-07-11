@@ -12,6 +12,7 @@ const javascriptFiles = [
   'lib/crypto.js',
   'lib/image.js',
   'worker/github.js',
+  'worker/affiliate-catalog-state.js',
   'worker/affiliate-nonce.js',
   'worker/index.js',
   'scripts/check.mjs',

@@ -151,6 +151,19 @@
         <button id="affiliate-logout-button" class="button button-secondary" type="button">Выйти</button>
       </div>
 
+      <section class="affiliate-proposals" aria-labelledby="affiliate-proposals-title">
+        <div class="subsection-heading">
+          <div>
+            <h3 id="affiliate-proposals-title">Ожидающие Pull Requests</h3>
+            <p>Сначала дождитесь двух зелёных проверок, затем откройте PR и отправьте review <strong>Approve</strong>. Только после этого здесь станет доступна публикация.</p>
+          </div>
+          <button id="affiliate-proposals-refresh" class="button button-secondary" type="button">Обновить статусы</button>
+        </div>
+        <p id="affiliate-proposals-status" class="status" role="status" aria-live="polite"></p>
+        <div id="affiliate-proposal-items" class="affiliate-proposal-items"></div>
+        <p id="affiliate-proposals-empty" class="empty-inline">Открытых предложений нет.</p>
+      </section>
+
       <div class="affiliate-layout">
         <form id="affiliate-form" class="affiliate-form" novalidate>
           <div class="subsection-heading">
@@ -204,7 +217,7 @@
 
       <div id="affiliate-success-panel" class="notice notice-success" hidden>
         <h3>Изменение подготовлено</h3>
-        <p>Pull Request создан. Каталог изменится только после проверки и merge.</p>
+        <p>Pull Request создан. После двух зелёных проверок владелец должен отправить review <strong>Approve</strong>, затем опубликовать точный commit в блоке выше.</p>
         <a id="affiliate-pull-request-link" class="button button-secondary" href="#" target="_blank" rel="noopener noreferrer">Открыть PR</a>
       </div>
     </section>
@@ -295,6 +308,21 @@
       <div class="affiliate-item-actions">
         <button class="button button-secondary edit-affiliate" type="button">Изменить</button>
         <button class="button button-danger delete-affiliate" type="button">Удалить</button>
+      </div>
+    </article>
+  </template>
+
+  <template id="affiliate-proposal-template">
+    <article class="affiliate-proposal">
+      <div class="affiliate-proposal-copy">
+        <strong class="affiliate-proposal-title"></strong>
+        <span class="affiliate-proposal-meta"></span>
+        <span class="affiliate-proposal-checks"></span>
+        <p class="affiliate-proposal-message"></p>
+      </div>
+      <div class="affiliate-proposal-actions">
+        <a class="button button-secondary affiliate-proposal-link" href="#" target="_blank" rel="noopener noreferrer">Открыть PR</a>
+        <button class="button button-primary publish-affiliate-proposal" type="button">Опубликовать</button>
       </div>
     </article>
   </template>

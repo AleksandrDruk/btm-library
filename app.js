@@ -15,6 +15,8 @@ const MAX_OPERATIONS = 20;
 const RAW_CATALOG_URL = 'https://raw.githubusercontent.com/AleksandrDruk/btm-library/main/catalog.json';
 const RAW_ASSET_BASE = 'https://raw.githubusercontent.com/AleksandrDruk/btm-library/main/';
 const GITHUB_PR_PREFIX = 'https://github.com/AleksandrDruk/btm-library/pull/';
+const AFFILIATE_GITHUB_PR_PREFIX = 'https://github.com/AleksandrDruk/btm-affiliate-library/pull/';
+const AFFILIATE_REQUIRED_CHECKS = ['validate-catalog', 'code-checks'];
 
 const elements = {
   catalogSummary: document.getElementById('catalog-summary'),
@@ -67,6 +69,11 @@ const elements = {
   affiliateItemTemplate: document.getElementById('affiliate-item-template'),
   affiliateSuccessPanel: document.getElementById('affiliate-success-panel'),
   affiliatePullRequestLink: document.getElementById('affiliate-pull-request-link'),
+  affiliateProposalsRefresh: document.getElementById('affiliate-proposals-refresh'),
+  affiliateProposalsStatus: document.getElementById('affiliate-proposals-status'),
+  affiliateProposalItems: document.getElementById('affiliate-proposal-items'),
+  affiliateProposalsEmpty: document.getElementById('affiliate-proposals-empty'),
+  affiliateProposalTemplate: document.getElementById('affiliate-proposal-template'),
 };
 
 const state = {
@@ -86,6 +93,9 @@ const state = {
   affiliateLoading: false,
   affiliateSubmitting: false,
   affiliateEditingId: '',
+  affiliateProposals: [],
+  affiliateProposalsLoading: false,
+  affiliatePublishingNumber: 0,
 };
 
 function setStatus(element, message, kind = 'error') {
@@ -236,6 +246,13 @@ function sessionIsActive() {
   return Boolean(state.sessionToken) && Date.now() < state.sessionExpiresAt;
 }
 
+function sessionRequestHeaders(includeJson = false) {
+  return {
+    ['Author' + 'ization']: `Bearer ${state.sessionToken}`,
+    ...(includeJson ? { 'Content-Type': 'application/json' } : {}),
+  };
+}
+
 function scheduleSessionExpiry() {
   if (state.sessionTimerId !== null) {
     globalThis.clearTimeout(state.sessionTimerId);
@@ -281,6 +298,7 @@ function openAffiliateLibrary() {
   }
   showModule('affiliate');
   loadAffiliateCatalog(!state.affiliateLoaded);
+  loadAffiliateProposals();
   window.setTimeout(() => elements.affiliateFilter.focus(), 0);
 }
 
@@ -352,12 +370,18 @@ function logout(message = '') {
   state.affiliateLoaded = false;
   state.affiliateLoading = false;
   state.affiliateSubmitting = false;
+  state.affiliateProposals = [];
+  state.affiliateProposalsLoading = false;
+  state.affiliatePublishingNumber = 0;
   resetAffiliateForm();
   elements.affiliateFilter.value = '';
   elements.affiliateItems.replaceChildren();
   elements.affiliateSuccessPanel.hidden = true;
   elements.affiliatePullRequestLink.removeAttribute('href');
   elements.affiliateSummary.textContent = 'Каталог ещё не загружен.';
+  elements.affiliateProposalItems.replaceChildren();
+  elements.affiliateProposalsEmpty.hidden = false;
+  setStatus(elements.affiliateProposalsStatus, '');
   elements.affiliateLoading.textContent = 'Загрузите приватный каталог.';
   elements.affiliateLoading.hidden = false;
   showModule('login');
@@ -759,7 +783,8 @@ function safePullRequestUrl(value) {
     const url = new URL(value);
     if (
       url.origin !== 'https://github.com'
-      || !/^\/[^/]+\/[^/]+\/pull\/[1-9][0-9]*\/?$/.test(url.pathname)
+      || !url.href.startsWith(AFFILIATE_GITHUB_PR_PREFIX)
+      || !/^\/AleksandrDruk\/btm-affiliate-library\/pull\/[1-9][0-9]*\/?$/.test(url.pathname)
       || url.search
       || url.hash
     ) {
@@ -768,6 +793,187 @@ function safePullRequestUrl(value) {
     return url;
   } catch {
     return null;
+  }
+}
+
+function normalizeAffiliateProposal(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('API вернул некорректный статус PR.');
+  }
+  const number = Number(value.number);
+  const url = safePullRequestUrl(value.url);
+  const title = typeof value.title === 'string' ? value.title.trim() : '';
+  const headSha = typeof value.head_sha === 'string' ? value.head_sha.toLowerCase() : '';
+  const checks = value.checks;
+  const checkKeys = checks && typeof checks === 'object' && !Array.isArray(checks)
+    ? Object.keys(checks).sort()
+    : [];
+  const expectedCheckKeys = [...AFFILIATE_REQUIRED_CHECKS].sort();
+  if (
+    !Number.isInteger(number)
+    || number < 1
+    || !url
+    || !title
+    || title.length > 180
+    || !/^[0-9a-f]{40}$/.test(headSha)
+    || JSON.stringify(checkKeys) !== JSON.stringify(expectedCheckKeys)
+    || AFFILIATE_REQUIRED_CHECKS.some((name) => !['pending', 'success', 'failed'].includes(checks[name]))
+    || typeof value.approved !== 'boolean'
+    || typeof value.publishable !== 'boolean'
+    || typeof value.code !== 'string'
+    || !/^[a-z][a-z0-9_]{0,79}$/.test(value.code)
+    || typeof value.message !== 'string'
+    || value.message.length < 1
+    || value.message.length > 300
+  ) {
+    throw new Error('API вернул некорректный статус PR.');
+  }
+  if (
+    value.publishable
+    && (!value.approved || AFFILIATE_REQUIRED_CHECKS.some((name) => checks[name] !== 'success'))
+  ) {
+    throw new Error('API вернул противоречивый approval status.');
+  }
+  const pathNumber = Number(url.pathname.split('/').filter(Boolean).at(-1));
+  if (pathNumber !== number) {
+    throw new Error('API вернул несовпадающий номер PR.');
+  }
+
+  return {
+    number,
+    title,
+    url: url.href,
+    head_sha: headSha,
+    checks: Object.fromEntries(AFFILIATE_REQUIRED_CHECKS.map((name) => [name, checks[name]])),
+    approved: value.approved,
+    publishable: value.publishable,
+    code: value.code,
+    message: value.message,
+  };
+}
+
+function proposalCheckLabel(name, stateValue) {
+  const label = name === 'validate-catalog' ? 'Каталог' : 'Код';
+  if (stateValue === 'success') return `${label}: ✓`;
+  if (stateValue === 'failed') return `${label}: ошибка`;
+  return `${label}: ожидается`;
+}
+
+function renderAffiliateProposals() {
+  elements.affiliateProposalItems.replaceChildren();
+  elements.affiliateProposalsEmpty.hidden = state.affiliateProposals.length > 0 || state.affiliateProposalsLoading;
+
+  state.affiliateProposals.forEach((proposal) => {
+    const fragment = elements.affiliateProposalTemplate.content.cloneNode(true);
+    const row = fragment.querySelector('.affiliate-proposal');
+    const link = fragment.querySelector('.affiliate-proposal-link');
+    const publishButton = fragment.querySelector('.publish-affiliate-proposal');
+    row.classList.toggle('is-ready', proposal.publishable);
+    fragment.querySelector('.affiliate-proposal-title').textContent = `#${proposal.number} · ${proposal.title}`;
+    fragment.querySelector('.affiliate-proposal-meta').textContent = proposal.approved
+      ? 'Review владельца: ✓'
+      : 'Review владельца: ожидается';
+    fragment.querySelector('.affiliate-proposal-checks').textContent = AFFILIATE_REQUIRED_CHECKS
+      .map((name) => proposalCheckLabel(name, proposal.checks[name]))
+      .join(' · ');
+    fragment.querySelector('.affiliate-proposal-message').textContent = proposal.message;
+    link.href = proposal.url;
+    publishButton.disabled = !proposal.publishable || state.affiliateSubmitting;
+    publishButton.textContent = state.affiliatePublishingNumber === proposal.number
+      ? 'Публикуем…'
+      : 'Опубликовать';
+    publishButton.addEventListener('click', () => publishAffiliateProposal(proposal));
+    elements.affiliateProposalItems.append(fragment);
+  });
+}
+
+async function loadAffiliateProposals() {
+  if (!state.config || state.affiliateProposalsLoading || !sessionIsActive()) return;
+  state.affiliateProposalsLoading = true;
+  const sessionAtStart = state.sessionToken;
+  elements.affiliateProposalsRefresh.disabled = true;
+  setStatus(elements.affiliateProposalsStatus, 'Проверяем Actions и review в GitHub…', 'info');
+  renderAffiliateProposals();
+
+  try {
+    const response = await fetch(`${state.config.apiBase}/affiliate-catalog/proposals`, {
+      method: 'GET',
+      headers: sessionRequestHeaders(),
+      cache: 'no-store',
+    });
+    if (sessionAtStart !== state.sessionToken || !sessionIsActive()) return;
+    if (response.status === 401) {
+      logout('Сессия истекла. Войдите снова.');
+      return;
+    }
+    if (!response.ok) {
+      throw new Error(await apiError(response));
+    }
+    const payload = await response.json();
+    if (payload?.ok !== true || !Array.isArray(payload.proposals) || payload.proposals.length > 10) {
+      throw new Error('API вернул некорректный список PR.');
+    }
+    state.affiliateProposals = payload.proposals.map(normalizeAffiliateProposal);
+    setStatus(
+      elements.affiliateProposalsStatus,
+      state.affiliateProposals.length
+        ? 'Статусы актуальны. Публикация доступна только после двух checks и точного APPROVED review.'
+        : 'Открытых affiliate PR нет.',
+      'success',
+    );
+  } catch (error) {
+    setStatus(elements.affiliateProposalsStatus, `Не удалось обновить PR: ${error.message}`);
+  } finally {
+    state.affiliateProposalsLoading = false;
+    elements.affiliateProposalsRefresh.disabled = state.affiliateSubmitting;
+    renderAffiliateProposals();
+  }
+}
+
+async function publishAffiliateProposal(proposal) {
+  if (!proposal.publishable || state.affiliateSubmitting || !sessionIsActive()) return;
+  if (!globalThis.confirm(`Опубликовать проверенный PR #${proposal.number}? Worker зафиксирует точный commit и только затем обновит каталог для WordPress.`)) {
+    return;
+  }
+
+  setAffiliateBusy(true);
+  state.affiliatePublishingNumber = proposal.number;
+  renderAffiliateProposals();
+  const sessionAtStart = state.sessionToken;
+  setStatus(elements.affiliateProposalsStatus, `Публикуем PR #${proposal.number}…`, 'info');
+  try {
+    const response = await fetch(
+      `${state.config.apiBase}/affiliate-catalog/proposals/${proposal.number}/publish`,
+      {
+        method: 'POST',
+        headers: sessionRequestHeaders(true),
+        body: JSON.stringify({ head_sha: proposal.head_sha }),
+      },
+    );
+    if (sessionAtStart !== state.sessionToken || !sessionIsActive()) return;
+    if (response.status === 401) {
+      logout('Сессия истекла. Войдите снова.');
+      return;
+    }
+    if (!response.ok) {
+      throw new Error(await apiError(response));
+    }
+    const payload = await response.json();
+    if (payload?.ok !== true || payload.published !== true || !payload.catalog) {
+      throw new Error('API не подтвердил публикацию каталога.');
+    }
+    state.affiliateCatalog = validateAffiliateCatalog(payload.catalog);
+    state.affiliateLoaded = true;
+    elements.affiliateSummary.textContent = `v${state.affiliateCatalog.catalog_version} · ${formatBrandCount(state.affiliateCatalog.items.length)}`;
+    renderAffiliateItems();
+    state.affiliateProposals = state.affiliateProposals.filter((item) => item.number !== proposal.number);
+    setStatus(elements.affiliateProposalsStatus, `PR #${proposal.number} опубликован и зафиксирован как текущий approved catalog.`, 'success');
+  } catch (error) {
+    setStatus(elements.affiliateProposalsStatus, error.message);
+  } finally {
+    state.affiliatePublishingNumber = 0;
+    setAffiliateBusy(false);
+    await loadAffiliateProposals();
   }
 }
 
@@ -836,9 +1042,11 @@ function setAffiliateBusy(busy) {
   elements.affiliateSubmitButton.disabled = busy || !state.affiliateLoaded;
   elements.affiliateCancelButton.disabled = busy;
   elements.affiliateRefreshButton.disabled = busy || state.affiliateLoading;
+  elements.affiliateProposalsRefresh.disabled = busy || state.affiliateProposalsLoading;
   elements.affiliateItems.querySelectorAll('button').forEach((button) => {
     button.disabled = busy;
   });
+  renderAffiliateProposals();
 }
 
 async function loadAffiliateCatalog(forceRefresh = false) {
@@ -967,7 +1175,8 @@ async function submitAffiliateOperations(operations, restoreFocusId = '') {
     elements.affiliatePullRequestLink.href = pullUrl.href;
     elements.affiliateSuccessPanel.hidden = false;
     resetAffiliateForm(false);
-    setStatus(elements.affiliateFormStatus, 'PR создан. Текущий каталог не изменится до review и merge.', 'success');
+    setStatus(elements.affiliateFormStatus, 'PR создан. Текущий каталог не изменится до checks, APPROVED review и защищённой публикации.', 'success');
+    await loadAffiliateProposals();
   } catch (error) {
     setStatus(elements.affiliateFormStatus, error.message);
   } finally {
@@ -997,6 +1206,7 @@ function bindEvents() {
   elements.affiliateCancelButton.addEventListener('click', () => resetAffiliateForm());
   elements.affiliateFilter.addEventListener('input', renderAffiliateItems);
   elements.affiliateRefreshButton.addEventListener('click', () => loadAffiliateCatalog(true));
+  elements.affiliateProposalsRefresh.addEventListener('click', () => loadAffiliateProposals());
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && state.sessionToken && !sessionIsActive()) {
       logout('Сессия истекла. Войдите снова.');
@@ -1028,6 +1238,7 @@ async function init() {
   elements.affiliateSubmitButton.disabled = true;
   renderQueue();
   renderAffiliateItems();
+  renderAffiliateProposals();
   try {
     state.config = await loadConfig();
   } catch (error) {
