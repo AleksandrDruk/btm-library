@@ -39,3 +39,11 @@ test('affiliate CSS preserves compact list and mobile form order', () => {
   assert.match(styles, /\.affiliate-layout\.is-form-open \.affiliate-form\s*\{[^}]*grid-row:\s*1;/s);
   assert.match(styles, /\.affiliate-layout\.is-form-open \.affiliate-catalog\s*\{[^}]*grid-row:\s*2;/s);
 });
+
+test('additional affiliate links use an integrated disclosure control', () => {
+  assert.match(appCode, /Показать ещё \$\{formatAdditionalLinkCount\(item\.links\.length - 1\)\}/);
+  assert.match(appCode, /Свернуть дополнительные ссылки/);
+  assert.match(appCode, /affiliate-links-toggle-icon/);
+  assert.match(styles, /\.affiliate-item-links\s*\{[^}]*grid-template-columns:\s*70px minmax\(0, 1fr\);/s);
+  assert.match(styles, /\.affiliate-links-toggle\s*\{[^}]*grid-column:\s*2;[^}]*border-radius:\s*999px;/s);
+});

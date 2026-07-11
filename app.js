@@ -162,6 +162,20 @@ function formatLinkCount(count) {
   return `${value} ${noun}`;
 }
 
+function formatAdditionalLinkCount(count) {
+  const value = Math.max(0, Number(count) || 0);
+  const mod100 = value % 100;
+  const mod10 = value % 10;
+  const noun = mod100 >= 11 && mod100 <= 14
+    ? 'ссылок'
+    : mod10 === 1
+      ? 'ссылку'
+      : mod10 >= 2 && mod10 <= 4
+        ? 'ссылки'
+        : 'ссылок';
+  return `${value} ${noun}`;
+}
+
 function affiliateCatalogSummary(catalog) {
   const links = catalog.items.reduce((total, item) => total + item.links.length, 0);
   return `${formatBrandCount(catalog.items.length)} · ${formatLinkCount(links)} · версия ${catalog.catalog_version}`;
@@ -1372,7 +1386,15 @@ function renderAffiliateItems() {
       linksToggle.type = 'button';
       linksToggle.setAttribute('aria-controls', linksContainer.id);
       linksToggle.setAttribute('aria-expanded', String(expanded));
-      linksToggle.textContent = expanded ? 'Скрыть дополнительные' : `Ещё ${item.links.length - 1}`;
+      const toggleLabel = document.createElement('span');
+      toggleLabel.textContent = expanded
+        ? 'Свернуть дополнительные ссылки'
+        : `Показать ещё ${formatAdditionalLinkCount(item.links.length - 1)}`;
+      const toggleIcon = document.createElement('span');
+      toggleIcon.className = 'affiliate-links-toggle-icon';
+      toggleIcon.setAttribute('aria-hidden', 'true');
+      toggleIcon.textContent = expanded ? '↑' : '↓';
+      linksToggle.replaceChildren(toggleLabel, toggleIcon);
       linksToggle.addEventListener('click', () => {
         if (state.affiliateExpandedIds.has(item.id)) {
           state.affiliateExpandedIds.delete(item.id);
