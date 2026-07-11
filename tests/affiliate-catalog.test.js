@@ -5,6 +5,7 @@ import {
   buildAffiliateCatalogUpdate,
   normalizeDestinationUrl,
   validateAffiliateCatalog,
+  validateAffiliateCatalogTransition,
 } from '../lib/affiliate-catalog.js';
 
 const emptyCatalog = () => ({ schema_version: 1, catalog_version: 1, items: [] });
@@ -105,5 +106,27 @@ test('rejects a serialized catalog before it crosses the GitHub Contents API saf
   assert.throws(
     () => validateAffiliateCatalog({ schema_version: 1, catalog_version: 1, items }),
     (error) => error instanceof AffiliateCatalogError && error.code === 'catalog_too_large',
+  );
+});
+
+test('validates catalog and item version transitions for an approval gate', () => {
+  const base = emptyCatalog();
+  const candidate = buildAffiliateCatalogUpdate(base, [{
+    mode: 'new',
+    brand: 'Vegas Hero',
+    destination_url: 'https://tracking.example.test/vegas',
+    tags: [],
+  }]).catalog;
+
+  const transition = validateAffiliateCatalogTransition(base, candidate, { requireChange: true });
+  assert.equal(transition.changed, true);
+  assert.equal(transition.candidate.catalog_version, 2);
+
+  assert.throws(
+    () => validateAffiliateCatalogTransition(base, {
+      ...candidate,
+      catalog_version: 3,
+    }),
+    (error) => error instanceof AffiliateCatalogError && error.code === 'catalog_version_transition',
   );
 });

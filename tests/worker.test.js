@@ -8,7 +8,10 @@ import {
   createSessionToken,
   deriveAffiliateSiteSecret,
 } from '../lib/crypto.js';
+import { buildAffiliateCatalogUpdate, serializeAffiliateCatalog } from '../lib/affiliate-catalog.js';
 import { handleRequest } from '../worker/index.js';
+
+const APPROVED_SHA = '1111111111111111111111111111111111111111';
 
 async function environment() {
   return {
@@ -26,6 +29,9 @@ async function environment() {
     AFFILIATE_READ_RATE_LIMITER: { limit: async () => ({ success: true }) },
     AFFILIATE_WRITE_RATE_LIMITER: { limit: async () => ({ success: true }) },
     AFFILIATE_NONCE_STORE: nonceNamespace(),
+    AFFILIATE_APPROVER_LOGIN: 'AleksandrDruk',
+    AFFILIATE_APPROVED_SHA: APPROVED_SHA,
+    AFFILIATE_CATALOG_STATE: catalogStateNamespace(APPROVED_SHA),
   };
 }
 
@@ -42,6 +48,38 @@ function nonceNamespace() {
         return new Response(null, { status: 204 });
       },
     }),
+  };
+}
+
+function catalogStateNamespace(initialSha) {
+  let approvedSha = initialSha;
+  return {
+    current: () => approvedSha,
+    idFromName: (name) => name,
+    get: (id) => ({
+      fetch: async (url, options = {}) => {
+        assert.equal(id, 'approved-affiliate-catalog');
+        const request = new Request(url, options);
+        if (request.method === 'GET') {
+          return approvedSha
+            ? new Response(approvedSha, { status: 200 })
+            : new Response(null, { status: 404 });
+        }
+        if (request.method === 'PUT') {
+          approvedSha = await request.text();
+          return new Response(null, { status: 204 });
+        }
+        return new Response(null, { status: 405 });
+      },
+    }),
+  };
+}
+
+function authenticatedRequestHeaders(sessionValue, includeJson = false) {
+  return {
+    Origin: 'https://example.test',
+    ['Author' + 'ization']: `Bearer ${sessionValue}`,
+    ...(includeJson ? { 'Content-Type': 'application/json' } : {}),
   };
 }
 
@@ -191,10 +229,10 @@ test('affiliate proposal endpoint creates a PR without writing to the base branc
       });
       return Response.json({ token: 'affiliate-write-token', expires_at: new Date(Date.now() + 3600_000).toISOString() });
     }
-    if (pathname.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: 'affiliate-base' } });
-    if (pathname.endsWith('/git/commits/affiliate-base')) return Response.json({ tree: { sha: 'affiliate-tree' } });
+    if (pathname.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: APPROVED_SHA } });
+    if (pathname.endsWith(`/git/commits/${APPROVED_SHA}`)) return Response.json({ tree: { sha: 'affiliate-tree' } });
     if (pathname.endsWith('/contents/catalog.json')) {
-      return Response.json({ content: Buffer.from(JSON.stringify(catalog)).toString('base64') });
+      return Response.json({ content: Buffer.from(serializeAffiliateCatalog(catalog)).toString('base64') });
     }
     if (pathname.endsWith('/git/blobs')) return Response.json({ sha: 'affiliate-catalog-blob' });
     if (pathname.endsWith('/git/trees')) {
@@ -244,6 +282,244 @@ test('affiliate proposal endpoint creates a PR without writing to the base branc
     type: 'blob',
     sha: 'affiliate-catalog-blob',
   }]);
+});
+
+test('affiliate approval gate publishes only an exact reviewed commit with both checks', async () => {
+  const env = await environment();
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  Object.assign(env, {
+    AFFILIATE_GITHUB_APP_ID: String(Date.now() + 100),
+    ['AFFILIATE_GITHUB_APP_' + 'PRIVATE_KEY']: privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    AFFILIATE_GITHUB_OWNER: 'AleksandrDruk',
+    AFFILIATE_GITHUB_REPO: 'btm-affiliate-library',
+    AFFILIATE_GITHUB_BASE_BRANCH: 'main',
+  });
+  const sessionMarker = await createSessionToken(env.SESSION_SECRET, 300, env.SESSION_VERSION);
+  const headSha = '2222222222222222222222222222222222222222';
+  const mergedSha = '3333333333333333333333333333333333333333';
+  const baseCatalog = { schema_version: 1, catalog_version: 1, items: [] };
+  const candidateCatalog = buildAffiliateCatalogUpdate(baseCatalog, [{
+    mode: 'new',
+    brand: 'Vegas Hero',
+    destination_url: 'https://tracking.example.test/click?campaign=42',
+    tags: 'vegas hero',
+  }]).catalog;
+  const pull = {
+    number: 14,
+    title: 'Affiliate catalog: Vegas Hero',
+    html_url: 'https://github.com/AleksandrDruk/btm-affiliate-library/pull/14',
+    state: 'open',
+    draft: false,
+    commits: 1,
+    changed_files: 1,
+    created_at: '2026-07-11T13:00:00Z',
+    base: {
+      ref: 'main',
+      repo: { full_name: 'AleksandrDruk/btm-affiliate-library' },
+    },
+    head: {
+      ref: 'affiliate-links/approval-test',
+      sha: headSha,
+      repo: { full_name: 'AleksandrDruk/btm-affiliate-library' },
+    },
+  };
+
+  const fetchMock = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname;
+    if (pathname.endsWith('/installation')) return Response.json({ id: 114 });
+    if (pathname === '/app/installations/114/access_tokens') {
+      assert.deepEqual(JSON.parse(options.body).permissions, {
+        checks: 'read',
+        contents: 'write',
+        pull_requests: 'write',
+      });
+      return Response.json({ token: 'test-only', expires_at: new Date(Date.now() + 3600_000).toISOString() });
+    }
+    if (pathname.endsWith('/pulls')) return Response.json([pull]);
+    if (pathname.endsWith('/pulls/14') && options.method !== 'PUT') return Response.json(pull);
+    if (pathname.endsWith('/pulls/14/files')) {
+      return Response.json([{ filename: 'catalog.json', status: 'modified' }]);
+    }
+    if (pathname.endsWith('/pulls/14/reviews')) {
+      return Response.json([{
+        id: 81,
+        state: 'APPROVED',
+        commit_id: headSha,
+        user: { login: 'AleksandrDruk' },
+      }]);
+    }
+    if (pathname.endsWith(`/commits/${headSha}/check-runs`)) {
+      return Response.json({
+        check_runs: ['validate-catalog', 'code-checks'].map((name, index) => ({
+          id: index + 1,
+          name,
+          head_sha: headSha,
+          status: 'completed',
+          conclusion: 'success',
+          app: { slug: 'github-actions' },
+        })),
+      });
+    }
+    if (pathname.endsWith('/git/ref/heads/main')) {
+      return Response.json({ object: { sha: APPROVED_SHA } });
+    }
+    if (pathname.endsWith(`/git/commits/${APPROVED_SHA}`)) {
+      return Response.json({ tree: { sha: 'base-tree' }, parents: [] });
+    }
+    if (pathname.endsWith(`/git/commits/${headSha}`)) {
+      return Response.json({
+        tree: { sha: 'candidate-tree' },
+        parents: [{ sha: APPROVED_SHA }],
+      });
+    }
+    if (pathname.endsWith(`/git/commits/${mergedSha}`)) {
+      return Response.json({
+        tree: { sha: 'candidate-tree' },
+        parents: [{ sha: APPROVED_SHA }],
+      });
+    }
+    if (pathname.endsWith('/contents/catalog.json')) {
+      const ref = parsed.searchParams.get('ref');
+      const catalog = ref === APPROVED_SHA ? baseCatalog : candidateCatalog;
+      return Response.json({ content: Buffer.from(serializeAffiliateCatalog(catalog)).toString('base64') });
+    }
+    if (pathname.endsWith('/pulls/14/merge') && options.method === 'PUT') {
+      assert.deepEqual(JSON.parse(options.body), {
+        sha: headSha,
+        merge_method: 'squash',
+        commit_title: 'Publish affiliate catalog PR #14',
+        commit_message: 'Validated by BTM approval gate.',
+      });
+      return Response.json({ merged: true, sha: mergedSha });
+    }
+    if (pathname.endsWith('/git/refs/heads/affiliate-links/approval-test') && options.method === 'DELETE') {
+      return new Response(null, { status: 204 });
+    }
+    throw new Error(`Unexpected request: ${options.method || 'GET'} ${pathname}`);
+  };
+
+  const proposalsResponse = await handleRequest(new Request('https://api.example.test/affiliate-catalog/proposals', {
+    method: 'GET',
+    headers: authenticatedRequestHeaders(sessionMarker),
+  }), env, {}, fetchMock);
+  const proposalsBody = await proposalsResponse.json();
+  assert.equal(proposalsResponse.status, 200);
+  assert.equal(proposalsBody.proposals.length, 1);
+  assert.equal(proposalsBody.proposals[0].publishable, true);
+
+  const response = await handleRequest(new Request('https://api.example.test/affiliate-catalog/proposals/14/publish', {
+    method: 'POST',
+    headers: authenticatedRequestHeaders(sessionMarker, true),
+    body: JSON.stringify({ head_sha: headSha }),
+  }), env, {}, fetchMock);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.published, true);
+  assert.equal(body.catalog.catalog_version, 2);
+  assert.equal(env.AFFILIATE_CATALOG_STATE.current(), mergedSha);
+});
+
+test('affiliate approval gate rejects a stale review and a failed required check without merging', async () => {
+  const env = await environment();
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  Object.assign(env, {
+    AFFILIATE_GITHUB_APP_ID: String(Date.now() + 101),
+    ['AFFILIATE_GITHUB_APP_' + 'PRIVATE_KEY']: privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    AFFILIATE_GITHUB_OWNER: 'AleksandrDruk',
+    AFFILIATE_GITHUB_REPO: 'btm-affiliate-library',
+    AFFILIATE_GITHUB_BASE_BRANCH: 'main',
+  });
+  const sessionMarker = await createSessionToken(env.SESSION_SECRET, 300, env.SESSION_VERSION);
+  const headSha = '4444444444444444444444444444444444444444';
+  const previousHeadSha = '5555555555555555555555555555555555555555';
+  const pull = {
+    number: 15,
+    title: 'Affiliate catalog: blocked proposal',
+    html_url: 'https://github.com/AleksandrDruk/btm-affiliate-library/pull/15',
+    state: 'open',
+    draft: false,
+    commits: 1,
+    changed_files: 1,
+    created_at: '2026-07-11T13:30:00Z',
+    base: {
+      ref: 'main',
+      repo: { full_name: 'AleksandrDruk/btm-affiliate-library' },
+    },
+    head: {
+      ref: 'affiliate-links/blocked-test',
+      sha: headSha,
+      repo: { full_name: 'AleksandrDruk/btm-affiliate-library' },
+    },
+  };
+  let failedCheck = false;
+  let mergeCalls = 0;
+
+  const fetchMock = async (url, options = {}) => {
+    const pathname = new URL(url).pathname;
+    if (pathname.endsWith('/installation')) return Response.json({ id: 115 });
+    if (pathname === '/app/installations/115/access_tokens') {
+      return Response.json({ token: 'test-only', expires_at: new Date(Date.now() + 3600_000).toISOString() });
+    }
+    if (pathname.endsWith('/pulls')) return Response.json([pull]);
+    if (pathname.endsWith('/pulls/15') && options.method !== 'PUT') return Response.json(pull);
+    if (pathname.endsWith('/pulls/15/files')) {
+      return Response.json([{ filename: 'catalog.json', status: 'modified' }]);
+    }
+    if (pathname.endsWith('/pulls/15/reviews')) {
+      return Response.json([{
+        id: 91,
+        state: 'APPROVED',
+        commit_id: previousHeadSha,
+        user: { login: 'AleksandrDruk' },
+      }]);
+    }
+    if (pathname.endsWith(`/commits/${headSha}/check-runs`)) {
+      return Response.json({
+        check_runs: ['validate-catalog', 'code-checks'].map((name, index) => ({
+          id: index + 1,
+          name,
+          head_sha: headSha,
+          status: 'completed',
+          conclusion: failedCheck && name === 'code-checks' ? 'failure' : 'success',
+          app: { slug: 'github-actions' },
+        })),
+      });
+    }
+    if (pathname.endsWith('/git/ref/heads/main')) {
+      return Response.json({ object: { sha: APPROVED_SHA } });
+    }
+    if (pathname.endsWith(`/git/commits/${headSha}`)) {
+      return Response.json({ tree: { sha: 'candidate-tree' }, parents: [{ sha: APPROVED_SHA }] });
+    }
+    if (pathname.endsWith('/pulls/15/merge')) {
+      mergeCalls += 1;
+      throw new Error('A blocked proposal must never reach merge');
+    }
+    throw new Error(`Unexpected request: ${options.method || 'GET'} ${pathname}`);
+  };
+
+  const proposalsResponse = await handleRequest(new Request('https://api.example.test/affiliate-catalog/proposals', {
+    method: 'GET',
+    headers: authenticatedRequestHeaders(sessionMarker),
+  }), env, {}, fetchMock);
+  const proposalsBody = await proposalsResponse.json();
+  assert.equal(proposalsResponse.status, 200);
+  assert.equal(proposalsBody.proposals[0].publishable, false);
+  assert.equal(proposalsBody.proposals[0].code, 'review_required');
+
+  failedCheck = true;
+  const publishResponse = await handleRequest(new Request('https://api.example.test/affiliate-catalog/proposals/15/publish', {
+    method: 'POST',
+    headers: authenticatedRequestHeaders(sessionMarker, true),
+    body: JSON.stringify({ head_sha: headSha }),
+  }), env, {}, fetchMock);
+  const publishBody = await publishResponse.json();
+  assert.equal(publishResponse.status, 409);
+  assert.equal(publishBody.code, 'checks_failed');
+  assert.equal(mergeCalls, 0);
+  assert.equal(env.AFFILIATE_CATALOG_STATE.current(), APPROVED_SHA);
 });
 
 test('rejects an expired signed WordPress catalog request before repository access', async () => {
@@ -304,10 +580,9 @@ test('serves the private affiliate catalog to a correctly signed WordPress reque
       assert.deepEqual(JSON.parse(options.body).permissions, { contents: 'read' });
       return Response.json({ token: 'affiliate-read-token', expires_at: new Date(Date.now() + 3600_000).toISOString() });
     }
-    if (pathname.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: 'affiliate-base' } });
-    if (pathname.endsWith('/git/commits/affiliate-base')) return Response.json({ tree: { sha: 'affiliate-tree' } });
+    if (pathname.endsWith(`/git/commits/${APPROVED_SHA}`)) return Response.json({ tree: { sha: 'affiliate-tree' } });
     if (pathname.endsWith('/contents/catalog.json')) {
-      return Response.json({ content: Buffer.from(JSON.stringify(catalog)).toString('base64') });
+      return Response.json({ content: Buffer.from(serializeAffiliateCatalog(catalog)).toString('base64') });
     }
     throw new Error(`Unexpected request: ${pathname}`);
   };

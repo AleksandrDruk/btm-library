@@ -29,19 +29,23 @@ GitHub Pages не хранит пароль и не может менять ре
 3. Сессия хранится только в памяти вкладки; после refresh нужен новый вход.
 4. Worker повторно валидирует файлы и актуальный `catalog.json`.
 5. GitHub App создаёт отдельную ветку, один атомарный commit и Pull Request.
-6. `main` не меняется автоматически. PR объединяет владелец после `validate-catalog` и review.
+6. Logo PR объединяет владелец после `validate-catalog` и review.
+7. Affiliate PR публикуется через отдельный approval gate: Worker требует успешные `validate-catalog` и `code-checks`, `APPROVED` review владельца для точного head commit и только затем выполняет squash merge с SHA-lock.
+8. WordPress и Pages читают affiliate-каталог только из commit SHA, записанного Worker в Durable Object как approved. Прямое или неподтверждённое изменение `main` не становится доступным потребителям.
 
 GitHub App устанавливается только на `AleksandrDruk/btm-library`. Ей нужны только repository permissions `Contents: Read and write` и `Pull requests: Read and write`. Webhooks, OAuth authorization, Administration, Actions и Workflows не нужны.
 
-Для affiliate-каталога используется отдельная GitHub App, установленная только на private repository `btm-affiliate-library`, с теми же двумя repository permissions. Разделение не расширяет доступ logo App к приватным URL.
+Для affiliate-каталога используется отдельная GitHub App, установленная только на private repository `btm-affiliate-library`. Ей нужны `Contents: Read and write`, `Pull requests: Read and write` и `Checks: Read-only`. Разделение не расширяет доступ logo App к приватным URL.
 
 Affiliate flow:
 
 1. Authenticated Pages UI получает текущий private catalog через Worker и read-only installation token.
 2. Add/update/delete повторно валидируются Worker.
 3. Worker запрашивает write-scoped installation token, создаёт отдельную `affiliate-links/*` branch, атомарный commit только с `catalog.json` и Pull Request.
-4. WordPress-сайты используют отдельный endpoint `/affiliate-catalog/read`; browser session и общий пароль в plugin не передаются.
-5. Каждый сайт получает собственные `site_id` и производный HMAC secret. Worker проверяет timestamp, подпись и rate limit, а Durable Object атомарно принимает nonce только один раз; endpoint остаётся read-only.
+4. GitHub Actions выполняет `validate-catalog` и `code-checks`; владелец `AleksandrDruk` открывает PR и нажимает `Approve` для текущего commit.
+5. В Pages UI кнопка «Опубликовать» запускает повторную server-side проверку точного PR/head/base, единственного `catalog.json`, parent SHA, обоих checks и review. Worker выполняет SHA-locked squash merge, проверяет parent/tree результата и записывает merged SHA как approved.
+6. WordPress-сайты используют отдельный endpoint `/affiliate-catalog/read`; browser session и общий пароль в plugin не передаются.
+7. Каждый сайт получает собственные `site_id` и производный HMAC secret. Worker проверяет timestamp, подпись и rate limit, один Durable Object атомарно принимает nonce только один раз, а второй хранит approved affiliate commit; endpoint остаётся read-only.
 
 Минимальная private catalog schema:
 
@@ -148,7 +152,14 @@ npm run site-credential -- secrets.production.json
 3. Установите App через `Install App -> Only select repositories -> btm-library`.
 4. Не добавляйте App в bypass list правил ветки `main`.
 
-Создайте вторую App, например `BTM Affiliate Catalog`, с теми же permissions, но установите её **только** на private repository `btm-affiliate-library`. Её `App ID` и `.pem` используются в отдельных `AFFILIATE_GITHUB_*` secrets.
+Создайте вторую App, например `BTM Affiliate Catalog`, и установите её **только** на private repository `btm-affiliate-library`. Repository permissions:
+
+- `Contents: Read and write`;
+- `Pull requests: Read and write`;
+- `Checks: Read-only`;
+- всё остальное: `No access`.
+
+Её `App ID` и `.pem` используются в отдельных `AFFILIATE_GITHUB_*` secrets. После добавления `Checks` подтвердите обновлённые permissions установки App, если GitHub покажет такой запрос.
 
 ### 2. Cloudflare Turnstile
 
@@ -170,7 +181,7 @@ npm run session-secret
 npm run session-secret
 ```
 
-Первый случайный secret используйте как `SESSION_SECRET`, второй — как `AFFILIATE_READ_MASTER_SECRET`; они не должны совпадать. Генератор пароля использует PBKDF2-SHA-256 с 100 000 итераций — это максимальное значение, которое принимает production runtime Cloudflare Workers. Вход и каталоги дополнительно защищены четырьмя независимыми rate limiter bindings; replay signed read requests блокирует отдельный Durable Object `AFFILIATE_NONCE_STORE`.
+Первый случайный secret используйте как `SESSION_SECRET`, второй — как `AFFILIATE_READ_MASTER_SECRET`; они не должны совпадать. Генератор пароля использует PBKDF2-SHA-256 с 100 000 итераций — это максимальное значение, которое принимает production runtime Cloudflare Workers. Вход и каталоги дополнительно защищены четырьмя независимыми rate limiter bindings; replay signed read requests блокирует Durable Object `AFFILIATE_NONCE_STORE`, а approved affiliate SHA хранит `AFFILIATE_CATALOG_STATE` с безопасным bootstrap fallback `AFFILIATE_APPROVED_SHA`.
 
 Создайте локальный `secrets.production.json`; он игнорируется Git и после деплоя должен быть удалён:
 
@@ -221,7 +232,7 @@ npx --yes wrangler@4.106.0 deploy --secrets-file secrets.production.json
 
 ### 6. Защита main
 
-Создайте GitHub Ruleset или Branch protection для `main`:
+Для публичного `btm-library/main` создайте GitHub Ruleset или Branch protection:
 
 - Require a pull request before merging;
 - Require status checks to pass;
@@ -230,6 +241,15 @@ npx --yes wrangler@4.106.0 deploy --secrets-file secrets.production.json
 - не разрешать GitHub App обходить правило.
 
 Check появится в списке после первого тестового PR.
+
+Для приватного `btm-affiliate-library` платный plan не требуется. На GitHub Free checks видимы, но Worker сам является обязательным approval gate и не полагается на branch protection:
+
+1. PR должен содержать один commit и менять только `catalog.json`.
+2. `validate-catalog` и `code-checks` должны завершиться успешно для текущего head SHA.
+3. Владелец `AleksandrDruk` должен отправить `APPROVED` review для этого же SHA.
+4. Менеджер нажимает «Опубликовать» в Pages UI; Worker повторно проверяет контракт, объединяет точный SHA и только после post-merge verification обновляет approved state.
+
+Не выполняйте ручной merge или прямой push в private `main`: такой commit не будет записан как approved и каталог останется на последней подтверждённой версии.
 
 ### 7. Подключение WordPress
 
@@ -268,5 +288,7 @@ BTM кеширует проверенный каталог на 12 часов и
 - Компрометация любого GitHub App key: удалить только соответствующий key в GitHub, создать новый и заменить его Worker secret.
 - Компрометация одного site secret: сохранить старый opaque `site_id` в Worker secret `AFFILIATE_SITE_DENYLIST` (не в tracked `wrangler.jsonc`), выдать сайту новый id/secret и проверить deny. Значение denylist не должно публиковать клиентские домены или incident metadata.
 - Компрометация `AFFILIATE_READ_MASTER_SECRET`: заменить master, заново выдать credentials всем сайтам и удалить старый secret.
-- Ошибочный PR: не merge. После merge — revert commit; уже импортированные WordPress attachments откатываются отдельно.
+- Ошибочный PR: не approve и не публиковать. После публикации создайте исправляющий affiliate PR от текущего approved SHA; уже скопированные в WordPress значения и импортированные attachments откатываются отдельно.
+- Если private `main` отличается от approved SHA, Worker блокирует новые proposals и публикацию. Не переписывайте историю: сначала восстановите согласованное состояние отдельной operational процедурой.
+- Если GitHub успел объединить проверенный PR, но запись Durable Object завершилась ошибкой, consumers продолжают получать предыдущий approved SHA. Зафиксируйте merge commit после проверки parent/tree и обновите approved state до следующих изменений `main`.
 - Удаление Worker или GitHub Pages не ломает уже сохранённые таблицы, изображения и affiliate URL на WordPress-сайтах; перестают работать только новые выборы из каталогов.
