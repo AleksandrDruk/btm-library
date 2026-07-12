@@ -7,6 +7,7 @@ import { validateRepository } from './validate-catalog.mjs';
 
 const javascriptFiles = [
   'app.js',
+  'frame-guard.js',
   'lib/affiliate-catalog.js',
   'lib/catalog.js',
   'lib/crypto.js',
@@ -47,6 +48,7 @@ if (
 }
 
 const browserCode = await readFile('app.js', 'utf8');
+const frameGuardCode = await readFile('frame-guard.js', 'utf8');
 const indexHtml = await readFile('index.html', 'utf8');
 const forbiddenPatterns = [
   ['innerHTML', /\.innerHTML\s*=/],
@@ -60,6 +62,16 @@ for (const [name, pattern] of forbiddenPatterns) {
   if (pattern.test(browserCode)) {
     throw new Error(`Forbidden browser pattern found: ${name}`);
   }
+}
+
+if (
+  indexHtml.includes('http://127.0.0.1:')
+  || indexHtml.includes('http://localhost:')
+  || !indexHtml.includes('<html lang="ru" class="btm-frame-blocked">')
+  || !frameGuardCode.includes('globalThis.top === globalThis.self')
+  || indexHtml.indexOf('<script src="./frame-guard.js"></script>') > indexHtml.indexOf('challenges.cloudflare.com/turnstile/')
+) {
+  throw new Error('Production CSP and early frame guard contract is incomplete.');
 }
 
 if (

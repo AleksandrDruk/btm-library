@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { lstat, readFile, readdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -66,10 +67,17 @@ function extensionForMime(mime) {
   return mime === 'image/jpeg' ? 'jpg' : mime.split('/')[1];
 }
 
+function sha256Hex(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
 function validateLogoFiles(catalog, files) {
   const catalogPaths = new Set(catalog.items.map((item) => item.path));
   for (const item of catalog.items) {
     invariant(files.has(item.path), `Файл из catalog.json отсутствует: ${item.path}`);
+    if (item.sha256) {
+      invariant(sha256Hex(files.get(item.path)) === item.sha256, `SHA-256 не совпадает: ${item.path}`);
+    }
   }
 
   for (const [filePath, bytes] of files) {
@@ -84,6 +92,39 @@ function validateLogoFiles(catalog, files) {
       // Unlisted versioned files are valid immutable history.
       invariant(VERSIONED_LOGO_PATH.test(filePath), `Неописанный файл не является versioned history: ${filePath}`);
     }
+  }
+}
+
+function withoutDigest(item) {
+  const { sha256, ...legacy } = item;
+  return legacy;
+}
+
+function validateSchemaMigration(baseCatalog, candidateCatalog, baseFiles, candidateFiles) {
+  invariant(
+    baseCatalog.schema_version === 1 && candidateCatalog.schema_version === 2,
+    'Разрешён только переход logo catalog schema 1 → 2.',
+  );
+  invariant(
+    candidateCatalog.catalog_version === baseCatalog.catalog_version + 1,
+    'При schema migration catalog_version должна увеличиться ровно на 1.',
+  );
+  invariant(candidateCatalog.items.length === baseCatalog.items.length, 'Schema migration не должна менять состав каталога.');
+
+  const candidateItems = itemMap(candidateCatalog);
+  for (const baseItem of baseCatalog.items) {
+    const candidateItem = candidateItems.get(baseItem.id);
+    invariant(candidateItem, `Schema migration потеряла позицию ${baseItem.id}.`);
+    invariant(
+      equalJson(baseItem, withoutDigest(candidateItem)),
+      `Schema migration изменила данные позиции ${baseItem.id}.`,
+    );
+  }
+
+  invariant(baseFiles.size === candidateFiles.size, 'Schema migration не должна менять logo files.');
+  for (const [filePath, baseBytes] of baseFiles) {
+    const candidateBytes = candidateFiles.get(filePath);
+    invariant(candidateBytes && baseBytes.equals(candidateBytes), `Schema migration изменила файл: ${filePath}`);
   }
 }
 
@@ -158,7 +199,9 @@ export async function validateRepository(candidateRoot, baseRoot = null) {
   if (baseRoot) {
     const baseCatalog = await readCatalog(baseRoot);
     const baseFiles = await collectLogoFiles(baseRoot);
-    if (equalJson(baseCatalog, candidateCatalog)) {
+    if (baseCatalog.schema_version !== candidateCatalog.schema_version) {
+      validateSchemaMigration(baseCatalog, candidateCatalog, baseFiles, candidateFiles);
+    } else if (equalJson(baseCatalog, candidateCatalog)) {
       for (const [filePath, baseBytes] of baseFiles) {
         if (!isCatalogAsset(filePath) || filePath === 'catalog.json') continue;
         const candidateBytes = candidateFiles.get(filePath);

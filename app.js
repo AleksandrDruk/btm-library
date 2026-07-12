@@ -1,4 +1,5 @@
 import { buildCatalogUpdate, CatalogError, slugify, validateCatalog } from './lib/catalog.js';
+import { sha256Hex } from './lib/crypto.js';
 import {
   AffiliateCatalogError,
   affiliateBrandKey,
@@ -572,7 +573,10 @@ async function addFiles(fileList) {
   for (const file of files) {
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const image = inspectImage(bytes);
+      const image = {
+        ...inspectImage(bytes),
+        sha256: await sha256Hex(bytes),
+      };
       if (file.type && file.type !== image.mime) {
         throw new ImageValidationError('mime_mismatch', 'MIME файла не совпадает с его содержимым.');
       }

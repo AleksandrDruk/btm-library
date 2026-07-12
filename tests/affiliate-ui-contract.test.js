@@ -2,11 +2,21 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const [appCode, indexHtml, styles] = await Promise.all([
+const [appCode, frameGuardCode, indexHtml, styles] = await Promise.all([
   readFile(new URL('../app.js', import.meta.url), 'utf8'),
+  readFile(new URL('../frame-guard.js', import.meta.url), 'utf8'),
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
   readFile(new URL('../styles.css', import.meta.url), 'utf8'),
 ]);
+
+test('production page hides controls until an early top-level frame guard runs', () => {
+  assert.match(indexHtml, /<html lang="ru" class="btm-frame-blocked">/);
+  assert.ok(indexHtml.indexOf('./frame-guard.js') < indexHtml.indexOf('challenges.cloudflare.com/turnstile/'));
+  assert.doesNotMatch(indexHtml, /http:\/\/(?:127\.0\.0\.1|localhost):/);
+  assert.match(frameGuardCode, /globalThis\.top === globalThis\.self/);
+  assert.match(frameGuardCode, /classList\.remove\('btm-frame-blocked'\)/);
+  assert.match(styles, /\.btm-frame-blocked body\s*\{[^}]*display:\s*none;/s);
+});
 
 test('affiliate catalog remains the primary paginated view', () => {
   assert.ok(indexHtml.indexOf('class="affiliate-catalog"') < indexHtml.indexOf('id="affiliate-form"'));

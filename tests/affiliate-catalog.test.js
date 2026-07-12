@@ -149,6 +149,50 @@ test('rejects duplicate destinations in one GEO and unsafe destination URLs', ()
   );
 });
 
+test('accepts only ISO GEO codes and an explicit tracking placeholder allowlist', () => {
+  assert.equal(normalizeDestinationUrl('https://tracking.example.test/click?cid={clickid}&sub={sub1}'), 'https://tracking.example.test/click?cid={clickid}&sub={sub1}');
+  assert.equal(normalizeDestinationUrl('https://tracking.example.test/click?cid=%7Bsubid%7D'), 'https://tracking.example.test/click?cid=%7Bsubid%7D');
+
+  assert.throws(() => buildAffiliateCatalogUpdate(emptyCatalog(), [{
+    mode: 'new', asset_id: '', brand: 'Bad Geo', logo_id: '',
+    links: [link('ZZ', 'https://tracking.example.test/geo')], tags: [],
+  }]), (error) => error instanceof AffiliateCatalogError && error.code === 'invalid_geo');
+  assert.throws(
+    () => normalizeDestinationUrl('https://tracking.example.test/click?cid={unknown_token}'),
+    (error) => error instanceof AffiliateCatalogError && error.code === 'invalid_destination_placeholder',
+  );
+  assert.throws(
+    () => normalizeDestinationUrl('https://tracking.example.test/click?cid={clickid'),
+    (error) => error instanceof AffiliateCatalogError && error.code === 'invalid_destination_placeholder',
+  );
+});
+
+test('transition keeps normalized brand and logical link ids stable', () => {
+  const base = {
+    schema_version: 2,
+    catalog_version: 2,
+    items: [{
+      id: 'stable-brand', brand: 'Stable Brand', logo_id: '', version: 1, tags: [],
+      links: [{ id: 'global', geo: 'GLOBAL', label: '', destination_url: 'https://tracking.example.test/stable' }],
+    }],
+  };
+
+  assert.throws(() => validateAffiliateCatalogTransition(base, {
+    ...base,
+    catalog_version: 3,
+    items: [{ ...base.items[0], id: 'renamed-brand', version: 1 }],
+  }), (error) => error instanceof AffiliateCatalogError && error.code === 'brand_id_transition');
+  assert.throws(() => validateAffiliateCatalogTransition(base, {
+    ...base,
+    catalog_version: 3,
+    items: [{
+      ...base.items[0],
+      version: 2,
+      links: [{ ...base.items[0].links[0], id: 'renamed-link' }],
+    }],
+  }), (error) => error instanceof AffiliateCatalogError && error.code === 'link_id_transition');
+});
+
 test('rejects a serialized catalog before the GitHub Contents API safe limit', () => {
   const longDestination = `https://tracking.example.test/click?q=${'a'.repeat(4050)}`;
   const items = Array.from({ length: 240 }, (_, index) => ({

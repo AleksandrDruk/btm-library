@@ -4,6 +4,7 @@ import { buildCatalogUpdate, CatalogError, validateCatalog } from '../lib/catalo
 
 const emptyCatalog = () => ({ schema_version: 1, catalog_version: 1, items: [] });
 const image = (extension = 'png') => ({ extension, width: 200, height: 100, bytes: 1000 });
+const digest = 'a'.repeat(64);
 
 test('same brand supports distinct variants without duplicate ids', () => {
   const result = buildCatalogUpdate(emptyCatalog(), [
@@ -68,4 +69,42 @@ test('manual duplicate brand and variant is rejected even with different ids', (
       },
     ],
   }), (error) => error.code === 'duplicate_brand_variant');
+});
+
+test('schema 2 requires a lowercase SHA-256 digest for every item', () => {
+  assert.throws(() => validateCatalog({
+    schema_version: 2,
+    catalog_version: 2,
+    items: [{
+      id: 'brand-primary',
+      brand: 'Brand',
+      variant: 'Primary',
+      path: 'logos/brand/brand-primary-v1.png',
+      suggested_filename: 'brand.png',
+      version: 1,
+      tags: [],
+    }],
+  }), (error) => error.code === 'invalid_keys');
+});
+
+test('schema 2 updates bind the catalog item to the uploaded image digest', () => {
+  const result = buildCatalogUpdate(
+    { schema_version: 2, catalog_version: 1, items: [] },
+    [{
+      mode: 'new',
+      brand: 'Brand',
+      variant: 'Primary',
+      image: { ...image(), sha256: digest },
+    }],
+  );
+
+  assert.equal(result.catalog.schema_version, 2);
+  assert.equal(result.catalog.items[0].sha256, digest);
+  assert.throws(
+    () => buildCatalogUpdate(
+      { schema_version: 2, catalog_version: 1, items: [] },
+      [{ mode: 'new', brand: 'Other', variant: 'Primary', image: image() }],
+    ),
+    (error) => error.code === 'invalid_sha256',
+  );
 });

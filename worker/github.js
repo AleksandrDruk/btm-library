@@ -122,7 +122,16 @@ async function readErrorMessage(response) {
 }
 
 async function githubFetch(path, options, fetchImpl) {
-  const response = await fetchImpl(`${API_BASE}${path}`, options);
+  let response;
+  try {
+    response = await fetchImpl(`${API_BASE}${path}`, options);
+  } catch {
+    throw new GitHubApiError(
+      'github_unavailable',
+      'GitHub API временно недоступен.',
+      502,
+    );
+  }
   if (!response.ok) {
     const upstreamMessage = await readErrorMessage(response);
     throw new GitHubApiError(

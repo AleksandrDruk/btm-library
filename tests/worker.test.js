@@ -5,17 +5,41 @@ import {
   bytesToBase64,
   createPasswordHash,
   createSessionToken,
+  sha256Hex,
 } from '../lib/crypto.js';
 import {
   buildAffiliateCatalogUpdate,
   serializeAffiliateCatalog,
   serializeAffiliateCatalogSnapshot,
 } from '../lib/affiliate-catalog.js';
+import {
+  AffiliateCatalogState,
+  publishApprovedAffiliateSnapshot,
+} from '../worker/affiliate-catalog-state.js';
 import { handleRequest } from '../worker/index.js';
 
 const APPROVED_SHA = '1111111111111111111111111111111111111111';
 
 const emptyAffiliateCatalog = () => ({ schema_version: 2, catalog_version: 1, items: [] });
+
+function pngBytes() {
+  const bytes = new Uint8Array(57);
+  bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+  bytes.set([0, 0, 0, 13], 8);
+  bytes.set([73, 72, 68, 82], 12);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(16, 120, false);
+  view.setUint32(20, 60, false);
+  bytes.set([8, 6, 0, 0, 0], 24);
+  bytes.set([0, 0, 0, 0], 29);
+  bytes.set([0, 0, 0, 0], 33);
+  bytes.set([73, 68, 65, 84], 37);
+  bytes.set([0, 0, 0, 0], 41);
+  bytes.set([0, 0, 0, 0], 45);
+  bytes.set([73, 69, 78, 68], 49);
+  bytes.set([0, 0, 0, 0], 53);
+  return bytes;
+}
 
 function affiliateLink(geo, destinationUrl, options = {}) {
   return {
@@ -47,27 +71,54 @@ async function environment() {
 }
 
 function catalogStateNamespace(initialSha) {
-  let approvedSha = initialSha;
-  return {
-    current: () => approvedSha,
+  const values = new Map([['approved_sha', initialSha]]);
+  const storage = {
+    async get(key) {
+      return values.get(key);
+    },
+    async put(key, value) {
+      values.set(key, value);
+    },
+    async delete(key) {
+      values.delete(key);
+    },
+    async transaction(callback) {
+      return callback(storage);
+    },
+  };
+  const state = new AffiliateCatalogState({ storage });
+  let beforeCacheWrite = null;
+  const namespace = {
+    current: () => values.get('approved_snapshot')?.sha || values.get('approved_sha') || '',
+    snapshot: () => values.get('approved_snapshot') || null,
+    beforeNextCacheWrite(callback) {
+      beforeCacheWrite = callback;
+    },
+    corruptSnapshot(value) {
+      values.set('approved_snapshot', value);
+    },
     idFromName: (name) => name,
     get: (id) => ({
       fetch: async (url, options = {}) => {
         assert.equal(id, 'approved-affiliate-catalog');
         const request = new Request(url, options);
-        if (request.method === 'GET') {
-          return approvedSha
-            ? new Response(approvedSha, { status: 200 })
-            : new Response(null, { status: 404 });
+        if (
+          beforeCacheWrite
+          && request.method === 'PUT'
+          && new URL(request.url).pathname === '/approved-snapshot'
+        ) {
+          const body = await request.clone().json();
+          if (body.mode === 'cache') {
+            const callback = beforeCacheWrite;
+            beforeCacheWrite = null;
+            await callback();
+          }
         }
-        if (request.method === 'PUT') {
-          approvedSha = await request.text();
-          return new Response(null, { status: 204 });
-        }
-        return new Response(null, { status: 405 });
+        return state.fetch(request);
       },
     }),
   };
+  return namespace;
 }
 
 function authenticatedRequestHeaders(sessionValue, includeJson = false) {
@@ -278,6 +329,76 @@ test('affiliate proposal endpoint creates a PR without writing to the base branc
     type: 'blob',
     sha: 'affiliate-catalog-blob',
   }]);
+});
+
+test('schema 2 logo upload binds catalog sha256 to the exact uploaded bytes', async () => {
+  const env = await environment();
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  Object.assign(env, {
+    GITHUB_APP_ID: String(Date.now() + 50),
+    GITHUB_APP_PRIVATE_KEY: privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    GITHUB_OWNER: 'AleksandrDruk',
+    GITHUB_REPO: 'btm-library',
+    GITHUB_BASE_BRANCH: 'main',
+  });
+  const sessionToken = await createSessionToken(env.SESSION_SECRET, 300, env.SESSION_VERSION);
+  const imageBytes = pngBytes();
+  const expectedDigest = await sha256Hex(imageBytes);
+  let candidateCatalog = null;
+
+  const fetchMock = async (url, options = {}) => {
+    const pathname = new URL(url).pathname;
+    if (pathname.endsWith('/installation')) return Response.json({ id: 151 });
+    if (pathname === '/app/installations/151/access_tokens') {
+      return Response.json({ token: 'logo-write-token', expires_at: new Date(Date.now() + 3600_000).toISOString() });
+    }
+    if (pathname.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: APPROVED_SHA } });
+    if (pathname.endsWith(`/git/commits/${APPROVED_SHA}`)) return Response.json({ tree: { sha: 'logo-tree' } });
+    if (pathname.endsWith('/contents/catalog.json')) {
+      const catalog = { schema_version: 2, catalog_version: 3, items: [] };
+      return Response.json({ content: Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`).toString('base64') });
+    }
+    if (pathname.endsWith('/git/blobs')) {
+      const body = JSON.parse(options.body);
+      if (body.encoding === 'utf-8') {
+        candidateCatalog = JSON.parse(body.content);
+        return Response.json({ sha: 'logo-catalog-blob' });
+      }
+      assert.equal(body.encoding, 'base64');
+      assert.deepEqual(Buffer.from(body.content, 'base64'), Buffer.from(imageBytes));
+      return Response.json({ sha: 'logo-image-blob' });
+    }
+    if (pathname.endsWith('/git/trees')) return Response.json({ sha: 'logo-new-tree' });
+    if (pathname.endsWith('/git/commits')) return Response.json({ sha: 'logo-new-commit' });
+    if (pathname.endsWith('/git/refs')) return Response.json({ ref: 'refs/heads/logo-upload/test' }, { status: 201 });
+    if (pathname.endsWith('/pulls')) {
+      return Response.json({
+        number: 51,
+        html_url: 'https://github.com/AleksandrDruk/btm-library/pull/51',
+      }, { status: 201 });
+    }
+    throw new Error(`Unexpected request: ${pathname}`);
+  };
+
+  const form = new FormData();
+  form.set('metadata', JSON.stringify([{
+    mode: 'new',
+    asset_id: '',
+    brand: 'Digest Brand',
+    variant: 'Primary',
+    suggested_filename: 'digest-brand.png',
+    tags: 'digest, primary',
+  }]));
+  form.set('file_0', new File([imageBytes], 'digest-brand.png', { type: 'image/png' }));
+
+  const response = await handleRequest(new Request('https://api.example.test/upload', {
+    method: 'POST',
+    headers: authenticatedRequestHeaders(sessionToken),
+    body: form,
+  }), env, {}, fetchMock);
+
+  assert.equal(response.status, 201);
+  assert.equal(candidateCatalog.items[0].sha256, expectedDigest);
 });
 
 test('affiliate approval gate publishes only an exact reviewed commit with both checks', async () => {
@@ -588,7 +709,11 @@ test('serves the approved affiliate catalog to a zero-config WordPress GET reque
       }],
     }],
   };
+  let githubAvailable = true;
+  let githubCalls = 0;
   const fetchMock = async (url, options = {}) => {
+    githubCalls += 1;
+    if (!githubAvailable) throw new Error('simulated GitHub outage');
     const parsed = new URL(url);
     const pathname = parsed.pathname;
     if (pathname.endsWith('/installation')) return Response.json({ id: 62 });
@@ -623,4 +748,109 @@ test('serves the approved affiliate catalog to a zero-config WordPress GET reque
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow, noarchive');
   assert.doesNotMatch(JSON.stringify(body), /github\.com/i);
+
+  const callsAfterWarmup = githubCalls;
+  githubAvailable = false;
+  const cachedResponse = await handleRequest(
+    new Request('https://api.example.test/affiliate-catalog/read', {
+      headers: { 'User-Agent': 'Brand-Tables-Manager/2.2.1' },
+    }),
+    env,
+    {},
+    fetchMock,
+  );
+  assert.equal(cachedResponse.status, 200);
+  assert.deepEqual((await cachedResponse.json()).catalog, catalog);
+  assert.equal(githubCalls, callsAfterWarmup);
+});
+
+test('affiliate catalog read fails safely when neither snapshot nor GitHub is available', async () => {
+  const env = await environment();
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  Object.assign(env, {
+    AFFILIATE_GITHUB_APP_ID: String(Date.now() + 200),
+    AFFILIATE_GITHUB_APP_PRIVATE_KEY: privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    AFFILIATE_GITHUB_OWNER: 'AleksandrDruk',
+    AFFILIATE_GITHUB_REPO: 'btm-affiliate-library',
+    AFFILIATE_GITHUB_BASE_BRANCH: 'main',
+  });
+
+  const response = await handleRequest(
+    new Request('https://api.example.test/affiliate-catalog/read', {
+      headers: { 'User-Agent': 'Brand-Tables-Manager/2.2.1' },
+    }),
+    env,
+    {},
+    async () => { throw new Error('simulated GitHub outage'); },
+  );
+
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).code, 'github_unavailable');
+});
+
+test('a concurrent publish wins over a slow read cache fill without serving the stale catalog', async () => {
+  const env = await environment();
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const nextSha = '9999999999999999999999999999999999999999';
+  Object.assign(env, {
+    AFFILIATE_GITHUB_APP_ID: String(Date.now() + 300),
+    AFFILIATE_GITHUB_APP_PRIVATE_KEY: privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    AFFILIATE_GITHUB_OWNER: 'AleksandrDruk',
+    AFFILIATE_GITHUB_REPO: 'btm-affiliate-library',
+    AFFILIATE_GITHUB_BASE_BRANCH: 'main',
+  });
+  const oldCatalog = {
+    schema_version: 2,
+    catalog_version: 2,
+    items: [{
+      id: 'old', brand: 'Old', logo_id: '', version: 1, tags: [],
+      links: [{ id: 'global', geo: 'GLOBAL', label: '', destination_url: 'https://tracking.example.test/old' }],
+    }],
+  };
+  const newCatalog = {
+    schema_version: 2,
+    catalog_version: 3,
+    items: [{
+      id: 'new', brand: 'New', logo_id: '', version: 1, tags: [],
+      links: [{ id: 'global', geo: 'GLOBAL', label: '', destination_url: 'https://tracking.example.test/new' }],
+    }],
+  };
+
+  env.AFFILIATE_CATALOG_STATE.beforeNextCacheWrite(async () => {
+    const stored = await publishApprovedAffiliateSnapshot(
+      env.AFFILIATE_CATALOG_STATE,
+      APPROVED_SHA,
+      nextSha,
+      serializeAffiliateCatalog(newCatalog),
+    );
+    assert.equal(stored.sha, nextSha);
+  });
+
+  const fetchMock = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname;
+    if (pathname.endsWith('/installation')) return Response.json({ id: 303 });
+    if (pathname === '/app/installations/303/access_tokens') {
+      return Response.json({ token: 'race-read-token', expires_at: new Date(Date.now() + 3600_000).toISOString() });
+    }
+    if (pathname.endsWith(`/git/commits/${APPROVED_SHA}`)) return Response.json({ tree: { sha: 'old-tree' } });
+    if (pathname.endsWith('/contents/catalog.json')) {
+      assert.equal(parsed.searchParams.get('ref'), APPROVED_SHA);
+      return Response.json({ content: Buffer.from(serializeAffiliateCatalog(oldCatalog)).toString('base64') });
+    }
+    throw new Error(`Unexpected request: ${pathname}`);
+  };
+
+  const response = await handleRequest(
+    new Request('https://api.example.test/affiliate-catalog/read', {
+      headers: { 'User-Agent': 'Brand-Tables-Manager/2.2.1' },
+    }),
+    env,
+    {},
+    fetchMock,
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).catalog, newCatalog);
+  assert.equal(env.AFFILIATE_CATALOG_STATE.current(), nextSha);
 });

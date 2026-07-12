@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,6 +35,10 @@ const item = {
   tags: ['brand', 'primary'],
 };
 
+function digest(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
 async function writeRepository(root, catalog, includeLogo) {
   await mkdir(path.join(root, 'logos', 'brand'), { recursive: true });
   await writeFile(path.join(root, 'catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`);
@@ -64,4 +69,31 @@ test('validator rejects an unlisted file outside the versioned path contract', a
   await writeFile(path.join(root, 'logos', 'brand', 'unversioned.png'), png());
 
   await assert.rejects(() => validateRepository(root), /versioned path/);
+});
+
+test('validator accepts the exact schema 1 to 2 digest-only migration', async (context) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'btm-validator-schema-'));
+  context.after(() => rm(workspace, { recursive: true, force: true }));
+  const base = path.join(workspace, 'base');
+  const candidate = path.join(workspace, 'candidate');
+  await writeRepository(base, { schema_version: 1, catalog_version: 2, items: [item] }, true);
+  await writeRepository(candidate, {
+    schema_version: 2,
+    catalog_version: 3,
+    items: [{ ...item, sha256: digest(png()) }],
+  }, true);
+
+  await assert.doesNotReject(() => validateRepository(candidate, base));
+});
+
+test('validator rejects a schema 2 digest that does not match image bytes', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'btm-validator-digest-'));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await writeRepository(root, {
+    schema_version: 2,
+    catalog_version: 3,
+    items: [{ ...item, sha256: '0'.repeat(64) }],
+  }, true);
+
+  await assert.rejects(() => validateRepository(root), /SHA-256/);
 });
