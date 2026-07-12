@@ -1,6 +1,7 @@
 import { buildCatalogUpdate, CatalogError, serializeCatalog, validateCatalog } from '../lib/catalog.js';
 import {
   createSessionToken,
+  sha256Hex,
   shortDigest,
   verifyPassword,
   verifySessionToken,
@@ -16,8 +17,10 @@ import {
 import { ImageValidationError, inspectImage, MAX_IMAGE_BYTES } from '../lib/image.js';
 import {
   AffiliateCatalogState,
+  cacheApprovedAffiliateSnapshot,
   getApprovedAffiliateCommit,
-  setApprovedAffiliateCommit,
+  getApprovedAffiliateSnapshot,
+  publishApprovedAffiliateSnapshot,
 } from './affiliate-catalog-state.js';
 import { AffiliateNonceStore } from './affiliate-nonce.js';
 import {
@@ -31,7 +34,7 @@ import {
   mergeAffiliateCatalogProposal,
 } from './github.js';
 
-const API_VERSION = '1.3.0';
+const API_VERSION = '1.4.0';
 const encoder = new TextEncoder();
 const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
 const MAX_METADATA_BYTES = 64 * 1024;
@@ -276,7 +279,10 @@ async function handleUpload(request, env, origin, fetchImpl) {
       throw new ApiError(400, 'file_missing', `Файл ${index + 1} отсутствует.`);
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const image = inspectImage(bytes);
+    const image = {
+      ...inspectImage(bytes),
+      sha256: await sha256Hex(bytes),
+    };
     if (file.type && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       throw new ApiError(400, 'declared_mime_invalid', `Файл ${index + 1} имеет неподдерживаемый MIME.`);
     }
@@ -356,6 +362,21 @@ function validatedAffiliateSnapshot(snapshot) {
   };
 }
 
+function assertAffiliateCatalogReadiness(catalog, env) {
+  const minimumVersion = Number(env.AFFILIATE_MIN_CATALOG_VERSION || 1);
+  const minimumItems = Number(env.AFFILIATE_MIN_ITEM_COUNT || 1);
+  if (
+    !Number.isInteger(minimumVersion)
+    || minimumVersion < 1
+    || !Number.isInteger(minimumItems)
+    || minimumItems < 1
+    || catalog.catalog_version < minimumVersion
+    || catalog.items.length < minimumItems
+  ) {
+    throw new ApiError(503, 'affiliate_catalog_not_ready', 'Опубликованный affiliate-каталог не прошёл readiness-проверку.');
+  }
+}
+
 async function affiliateRepositorySnapshot(env, fetchImpl, access, ref = '') {
   requireAffiliateRepository(env);
   const snapshot = await getRepositorySnapshot(env, fetchImpl, {
@@ -367,10 +388,50 @@ async function affiliateRepositorySnapshot(env, fetchImpl, access, ref = '') {
   return validatedAffiliateSnapshot(snapshot);
 }
 
-async function approvedAffiliateSnapshot(env, fetchImpl, access = 'read') {
+async function approvedAffiliateSnapshot(env, fetchImpl, access = 'read', retryCount = 0) {
   const approvedSha = await approvedAffiliateCommit(env);
+  let cached = null;
+  try {
+    cached = await getApprovedAffiliateSnapshot(env.AFFILIATE_CATALOG_STATE);
+  } catch {
+    // A malformed cache is never served; rebuild it from the immutable SHA.
+  }
+
+  if (cached && cached.sha === approvedSha) {
+    try {
+      const result = validatedAffiliateSnapshot({
+        baseCommitSha: approvedSha,
+        catalog: JSON.parse(cached.catalog_text),
+        catalogText: cached.catalog_text,
+      });
+      assertAffiliateCatalogReadiness(result.catalog, env);
+      return { ...result, approvedSha, cached: true };
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      // Fall through and rebuild a malformed snapshot from GitHub.
+    }
+  }
+
   const result = await affiliateRepositorySnapshot(env, fetchImpl, access, approvedSha);
-  return { ...result, approvedSha };
+  assertAffiliateCatalogReadiness(result.catalog, env);
+  try {
+    await cacheApprovedAffiliateSnapshot(
+      env.AFFILIATE_CATALOG_STATE,
+      approvedSha,
+      result.snapshot.catalogText,
+    );
+  } catch {
+    // A fresh, validated exact-SHA response is safe to serve even if caching
+    // is temporarily unavailable.
+  }
+  const currentApprovedSha = await approvedAffiliateCommit(env);
+  if (currentApprovedSha !== approvedSha) {
+    if (retryCount >= 1) {
+      throw new ApiError(503, 'affiliate_approval_state_changed', 'Версия опубликованного каталога изменилась во время чтения.');
+    }
+    return approvedAffiliateSnapshot(env, fetchImpl, access, retryCount + 1);
+  }
+  return { ...result, approvedSha, cached: false };
 }
 
 async function handleAffiliateCatalogGet(request, env, origin, fetchImpl) {
@@ -471,6 +532,7 @@ async function handleAffiliateCatalogPublish(request, env, origin, number, fetch
   ]);
   try {
     validateAffiliateCatalogTransition(base.catalog, candidate.catalog, { requireChange: true });
+    assertAffiliateCatalogReadiness(candidate.catalog, env);
   } catch (error) {
     if (error instanceof AffiliateCatalogError) {
       throw new ApiError(409, error.code, error.message);
@@ -480,7 +542,15 @@ async function handleAffiliateCatalogPublish(request, env, origin, number, fetch
 
   const merged = await mergeAffiliateCatalogProposal(approval, fetchImpl);
   try {
-    await setApprovedAffiliateCommit(env.AFFILIATE_CATALOG_STATE, merged.sha);
+    const stored = await publishApprovedAffiliateSnapshot(
+      env.AFFILIATE_CATALOG_STATE,
+      approvedSha,
+      merged.sha,
+      serializeAffiliateCatalog(candidate.catalog),
+    );
+    if (!stored) {
+      throw new Error('Affiliate approved state changed during publish.');
+    }
   } catch {
     throw new ApiError(
       503,

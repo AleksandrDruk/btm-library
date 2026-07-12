@@ -4,6 +4,7 @@ import {
   bytesToBase64,
   createPasswordHash,
   createSessionToken,
+  sha256Hex,
   verifyPassword,
   verifySessionToken,
 } from '../lib/crypto.js';
@@ -27,4 +28,11 @@ test('session tokens are signed, versioned and short-lived', async () => {
   assert.equal(payload.v, '4');
   assert.equal(await verifySessionToken(`${token}x`, secret, '4'), null);
   assert.equal(await verifySessionToken(token, secret, '5'), null);
+});
+
+test('SHA-256 helper hashes exact bytes for browser and Worker catalog paths', async () => {
+  assert.equal(
+    await sha256Hex(new Uint8Array([97, 98, 99])),
+    'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+  );
 });

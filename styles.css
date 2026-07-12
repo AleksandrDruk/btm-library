@@ -19,6 +19,10 @@
   --radius-md: 10px;
 }
 
+.btm-frame-blocked body {
+  display: none;
+}
+
 * {
   box-sizing: border-box;
 }
