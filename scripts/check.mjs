@@ -8,6 +8,7 @@ import { validateRepository } from './validate-catalog.mjs';
 const javascriptFiles = [
   'app.js',
   'frame-guard.js',
+  'lib/affiliate-geo-editor.js',
   'lib/affiliate-catalog.js',
   'lib/catalog.js',
   'lib/crypto.js',
@@ -76,7 +77,7 @@ if (
 
 if (
   !browserCode.includes("String(link.geo || 'GLOBAL')")
-  || !indexHtml.includes('placeholder="GLOBAL"')
+  || !indexHtml.includes('class="affiliate-link-geo-tags"')
 ) {
   throw new Error('New affiliate links must default to GLOBAL.');
 }

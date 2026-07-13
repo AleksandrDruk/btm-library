@@ -6,6 +6,10 @@ import {
   buildAffiliateCatalogUpdate,
   validateAffiliateCatalog,
 } from './lib/affiliate-catalog.js';
+import {
+  expandAffiliateLinkEditorRows,
+  groupAffiliateLinksForEditor,
+} from './lib/affiliate-geo-editor.js';
 import { ImageValidationError, inspectImage } from './lib/image.js';
 
 if (globalThis.top !== globalThis.self) {
@@ -901,30 +905,152 @@ function updateAffiliateLinkRemoveButtons() {
   });
 }
 
+function affiliateRowGeos(row) {
+  try {
+    const value = JSON.parse(row.querySelector('.affiliate-link-geos-value').value || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+function affiliateRowLinkIds(row) {
+  try {
+    const value = JSON.parse(row.querySelector('.affiliate-link-id').value || '{}');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function setAffiliateRowGeos(row, geos) {
+  row.querySelector('.affiliate-link-geos-value').value = JSON.stringify([...new Set(geos)]);
+}
+
+function renderAffiliateGeoTags(row) {
+  const tags = row.querySelector('.affiliate-link-geo-tags');
+  const input = row.querySelector('.affiliate-link-geo');
+  tags.replaceChildren();
+
+  affiliateRowGeos(row).forEach((geo) => {
+    const tag = document.createElement('span');
+    tag.className = `affiliate-link-geo-tag${geo === 'GLOBAL' ? ' is-global' : ''}`;
+    tag.setAttribute('role', 'listitem');
+
+    const text = document.createElement('span');
+    text.textContent = geo;
+    const remove = document.createElement('button');
+    remove.className = 'affiliate-link-geo-remove';
+    remove.type = 'button';
+    remove.textContent = '×';
+    remove.setAttribute('aria-label', `Удалить GEO ${geo}`);
+    remove.addEventListener('click', () => {
+      setAffiliateRowGeos(row, affiliateRowGeos(row).filter((value) => value !== geo));
+      input.setCustomValidity('');
+      renderAffiliateGeoTags(row);
+      input.focus();
+    });
+
+    tag.append(text, remove);
+    tags.append(tag);
+  });
+}
+
+function commitAffiliateGeoInput(row, reportInvalid = false) {
+  const input = row.querySelector('.affiliate-link-geo');
+  const rawValue = input.value.trim().toUpperCase();
+  if (!rawValue) return true;
+
+  const values = rawValue.split(/[\s,]+/).filter(Boolean);
+  const invalid = values.find((value) => !/^(?:[A-Z]{2}|GLOBAL)$/.test(value));
+  if (invalid) {
+    input.setCustomValidity('Введите GLOBAL или GEO-код из двух букв, например AT.');
+    if (reportInvalid) input.reportValidity();
+    return false;
+  }
+
+  setAffiliateRowGeos(row, [...affiliateRowGeos(row), ...values]);
+  input.value = '';
+  input.setCustomValidity('');
+  renderAffiliateGeoTags(row);
+  return true;
+}
+
+function validateAffiliateGeoRows() {
+  let firstInvalid = null;
+  const rows = [...elements.affiliateLinksEditor.querySelectorAll('.affiliate-link-editor-row')];
+  rows.forEach((row) => {
+    const input = row.querySelector('.affiliate-link-geo');
+    if (!commitAffiliateGeoInput(row)) {
+      firstInvalid ||= input;
+      return;
+    }
+    input.setCustomValidity(affiliateRowGeos(row).length ? '' : 'Добавьте хотя бы одно GEO.');
+    if (!input.checkValidity()) firstInvalid ||= input;
+  });
+
+  if (firstInvalid) {
+    firstInvalid.focus();
+    firstInvalid.reportValidity();
+    return false;
+  }
+  return true;
+}
+
 function addAffiliateLinkRow(link = {}) {
   const fragment = elements.affiliateLinkEditorTemplate.content.cloneNode(true);
   const row = fragment.querySelector('.affiliate-link-editor-row');
   const rowNumber = ++state.affiliateLinkRowSequence;
   const id = row.querySelector('.affiliate-link-id');
   const geo = row.querySelector('.affiliate-link-geo');
+  const geoHint = row.querySelector('.affiliate-link-geo-hint');
   const label = row.querySelector('.affiliate-link-label');
   const destination = row.querySelector('.affiliate-link-url');
   const remove = row.querySelector('.affiliate-remove-link');
 
   geo.id = `affiliate-link-geo-${rowNumber}`;
+  geoHint.id = `affiliate-link-geo-hint-${rowNumber}`;
+  geo.setAttribute('aria-describedby', geoHint.id);
   label.id = `affiliate-link-label-${rowNumber}`;
   destination.id = `affiliate-link-url-${rowNumber}`;
   row.querySelector('.affiliate-link-geo-label').htmlFor = geo.id;
   row.querySelector('.affiliate-link-variant-label').htmlFor = label.id;
   row.querySelector('.affiliate-link-url-label').htmlFor = destination.id;
 
-  id.value = String(link.id || '');
-  geo.value = String(link.geo || 'GLOBAL').toUpperCase();
+  const initialGeos = Array.isArray(link.geos)
+    ? link.geos
+    : [String(link.geo || 'GLOBAL')];
+  const idsByGeo = link.ids_by_geo && typeof link.ids_by_geo === 'object'
+    ? link.ids_by_geo
+    : (link.id ? { [String(link.geo || 'GLOBAL')]: String(link.id) } : {});
+  id.value = JSON.stringify(idsByGeo);
+  setAffiliateRowGeos(row, initialGeos.map((value) => String(value).toUpperCase()));
+  geo.value = '';
   label.value = String(link.label || '');
   destination.value = String(link.destination_url || '');
+  renderAffiliateGeoTags(row);
   geo.addEventListener('input', () => {
-    geo.value = geo.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6);
+    geo.value = geo.value.toUpperCase().replace(/[^A-Z,\s]/g, '').slice(0, 80);
+    geo.setCustomValidity('');
+    if (/[\s,]/.test(geo.value)) commitAffiliateGeoInput(row);
   });
+  geo.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault();
+      commitAffiliateGeoInput(row, true);
+      return;
+    }
+    if (event.key === 'Tab' && geo.value.trim() && !commitAffiliateGeoInput(row)) {
+      event.preventDefault();
+      geo.reportValidity();
+      return;
+    }
+    if (event.key === 'Backspace' && !geo.value && affiliateRowGeos(row).length) {
+      setAffiliateRowGeos(row, affiliateRowGeos(row).slice(0, -1));
+      renderAffiliateGeoTags(row);
+    }
+  });
+  geo.addEventListener('blur', () => commitAffiliateGeoInput(row));
   remove.addEventListener('click', () => {
     if (elements.affiliateLinksEditor.children.length <= 1) return;
     const rows = [...elements.affiliateLinksEditor.children];
@@ -942,12 +1068,13 @@ function addAffiliateLinkRow(link = {}) {
 }
 
 function affiliateLinksFromForm() {
-  return [...elements.affiliateLinksEditor.querySelectorAll('.affiliate-link-editor-row')].map((row) => ({
-    id: row.querySelector('.affiliate-link-id').value,
-    geo: row.querySelector('.affiliate-link-geo').value,
+  const rows = [...elements.affiliateLinksEditor.querySelectorAll('.affiliate-link-editor-row')].map((row) => ({
+    geos: affiliateRowGeos(row),
+    ids_by_geo: affiliateRowLinkIds(row),
     label: row.querySelector('.affiliate-link-label').value,
     destination_url: row.querySelector('.affiliate-link-url').value,
   }));
+  return expandAffiliateLinkEditorRows(rows);
 }
 
 function affiliateLinkDisplay(link) {
@@ -974,6 +1101,8 @@ function affiliateFormValue() {
     brand: elements.affiliateBrand.value,
     logo_id: elements.affiliateLogo.value,
     links: affiliateLinksFromForm(),
+    geo_drafts: [...elements.affiliateLinksEditor.querySelectorAll('.affiliate-link-geo')]
+      .map((input) => input.value),
     tags: elements.affiliateTags.value,
   });
 }
@@ -1312,7 +1441,7 @@ function editAffiliateItem(item, triggerId) {
   elements.affiliateBrand.value = item.brand;
   populateAffiliateLogoOptions(item.logo_id);
   elements.affiliateLinksEditor.replaceChildren();
-  item.links.forEach((link) => addAffiliateLinkRow(link));
+  groupAffiliateLinksForEditor(item.links).forEach((link) => addAffiliateLinkRow(link));
   elements.affiliateTags.value = item.tags.join(', ');
   elements.affiliateFormTitle.textContent = `Изменение: ${item.brand}`;
   elements.affiliateSubmitButton.textContent = 'Создать PR с изменением';
@@ -1642,7 +1771,7 @@ async function submitAffiliateOperations(operations, restoreFocusId = '') {
 
 function submitAffiliateForm(event) {
   event.preventDefault();
-  if (!elements.affiliateForm.checkValidity()) {
+  if (!validateAffiliateGeoRows() || !elements.affiliateForm.checkValidity()) {
     elements.affiliateForm.reportValidity();
     return;
   }

@@ -31,7 +31,12 @@ test('affiliate catalog remains the primary paginated view', () => {
 });
 
 test('affiliate form keeps native validation, labels, and focus recovery', () => {
-  assert.match(indexHtml, /pattern="\(\?:\[A-Z\]\{2\}\|GLOBAL\)"/);
+  assert.match(indexHtml, /class="affiliate-link-geo-tags" role="list"/);
+  assert.match(indexHtml, /class="affiliate-link-geo-hint"/);
+  assert.doesNotMatch(indexHtml, /class="affiliate-link-geo"[^>]+required/);
+  assert.match(appCode, /validateAffiliateGeoRows\(\)/);
+  assert.match(appCode, /groupAffiliateLinksForEditor\(item\.links\)/);
+  assert.match(appCode, /expandAffiliateLinkEditorRows\(rows\)/);
   assert.match(indexHtml, /class="affiliate-link-url"[^>]+type="url"[^>]+required/);
   assert.match(appCode, /affiliateForm\.checkValidity\(\)/);
   assert.match(appCode, /affiliateForm\.reportValidity\(\)/);

@@ -365,7 +365,12 @@
       <input class="affiliate-link-id" type="hidden">
       <div class="field affiliate-link-geo-field">
         <label class="affiliate-link-geo-label">GEO</label>
-        <input class="affiliate-link-geo" type="text" minlength="2" maxlength="6" pattern="(?:[A-Z]{2}|GLOBAL)" title="GLOBAL или код GEO из двух латинских букв, например IT" autocomplete="off" spellcheck="false" placeholder="GLOBAL" required>
+        <div class="affiliate-link-geo-control">
+          <div class="affiliate-link-geo-tags" role="list" aria-label="Выбранные GEO"></div>
+          <input class="affiliate-link-geo" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Добавить GEO">
+        </div>
+        <input class="affiliate-link-geos-value" type="hidden">
+        <p class="affiliate-link-geo-hint">Введите код и нажмите Enter. Можно добавить несколько.</p>
       </div>
       <div class="field affiliate-link-label-field">
         <label class="affiliate-link-variant-label">Вариант</label>

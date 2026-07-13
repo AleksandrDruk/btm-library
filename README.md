@@ -89,6 +89,8 @@ Affiliate flow:
 
 Affiliate-карточка использует только `logo_id` из публичной logo-library. Произвольные favicon/preview с tracking-доменов не загружаются. Если логотип отсутствует, UI показывает инициалы бренда.
 
+В форме одной ссылке можно назначить несколько GEO тегами. Перед отправкой Worker разворачивает такую строку в независимые schema `2` link-записи — по одной на каждый GEO — поэтому private catalog, approval gate и WordPress consumer сохраняют прежний one-link-per-GEO контракт. Строки с разными URL или названиями вариантов не объединяются.
+
 Pretty-printed private `catalog.json` ограничен 900 КиБ: Worker отклонит предложение раньше, чем файл пересечёт 1 МиБ и перестанет читаться через обычный GitHub Contents API response.
 
 ## Бренды, варианты и дубли
