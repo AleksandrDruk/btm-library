@@ -900,8 +900,17 @@ function populateAffiliateLogoOptions(selectedId = '') {
 
 function updateAffiliateLinkRemoveButtons() {
   const rows = [...elements.affiliateLinksEditor.querySelectorAll('.affiliate-link-editor-row')];
-  rows.forEach((row) => {
-    row.querySelector('.affiliate-remove-link').disabled = state.affiliateSubmitting || rows.length <= 1;
+  rows.forEach((row, index) => {
+    const hasMultipleRows = rows.length > 1;
+    const heading = row.querySelector('.affiliate-link-editor-heading');
+    const title = row.querySelector('.affiliate-link-editor-title');
+    const remove = row.querySelector('.affiliate-remove-link');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', hasMultipleRows ? `Affiliate-ссылка ${index + 1}` : 'Affiliate-ссылка');
+    heading.hidden = !hasMultipleRows;
+    title.textContent = `Ссылка ${index + 1}`;
+    remove.hidden = !hasMultipleRows;
+    remove.disabled = state.affiliateSubmitting;
   });
 }
 
@@ -1011,15 +1020,13 @@ function addAffiliateLinkRow(link = {}) {
   geo.id = `affiliate-link-geo-${rowNumber}`;
   geoHint.id = `affiliate-link-geo-hint-${rowNumber}`;
   geo.setAttribute('aria-describedby', geoHint.id);
-  label.id = `affiliate-link-label-${rowNumber}`;
   destination.id = `affiliate-link-url-${rowNumber}`;
   row.querySelector('.affiliate-link-geo-label').htmlFor = geo.id;
-  row.querySelector('.affiliate-link-variant-label').htmlFor = label.id;
   row.querySelector('.affiliate-link-url-label').htmlFor = destination.id;
 
   const initialGeos = Array.isArray(link.geos)
     ? link.geos
-    : [String(link.geo || 'GLOBAL')];
+    : (link.geo ? [String(link.geo)] : (elements.affiliateLinksEditor.children.length ? [] : ['GLOBAL']));
   const idsByGeo = link.ids_by_geo && typeof link.ids_by_geo === 'object'
     ? link.ids_by_geo
     : (link.id ? { [String(link.geo || 'GLOBAL')]: String(link.id) } : {});
@@ -1085,13 +1092,11 @@ function affiliateLinkDisplay(link) {
     return {
       destination: `${url.hostname}${route}`,
       hasParameters: Boolean(url.search || url.hash),
-      label: link.label,
     };
   } catch {
     return {
       destination: 'Некорректный URL',
       hasParameters: false,
-      label: link.label,
     };
   }
 }
@@ -1542,12 +1547,6 @@ function renderAffiliateItems() {
       const display = affiliateLinkDisplay(link);
       const copy = document.createElement('span');
       copy.className = 'affiliate-link-copy';
-      if (display.label) {
-        const variant = document.createElement('span');
-        variant.className = 'affiliate-link-variant';
-        variant.textContent = display.label;
-        copy.append(variant);
-      }
       const destination = document.createElement('span');
       destination.className = 'affiliate-link-destination';
       destination.textContent = display.destination;

@@ -19,6 +19,8 @@ test('production page hides controls until an early top-level frame guard runs',
 });
 
 test('affiliate catalog remains the primary paginated view', () => {
+  assert.match(indexHtml, /Управлять GEO-ссылками брендов/);
+  assert.doesNotMatch(indexHtml, /Управлять GEO-ссылками и вариантами брендов/);
   assert.ok(indexHtml.indexOf('class="affiliate-catalog"') < indexHtml.indexOf('id="affiliate-form"'));
   assert.match(indexHtml, /id="affiliate-form"[^>]+hidden/);
   assert.doesNotMatch(indexHtml, /id="affiliate-form"[^>]+novalidate/);
@@ -31,9 +33,16 @@ test('affiliate catalog remains the primary paginated view', () => {
 });
 
 test('affiliate form keeps native validation, labels, and focus recovery', () => {
+  const linkEditorTemplate = indexHtml.match(/<template id="affiliate-link-editor-template">([\s\S]*?)<\/template>/)?.[1] || '';
+  assert.ok(linkEditorTemplate.indexOf('affiliate-link-url-field') < linkEditorTemplate.indexOf('affiliate-link-geo-field'));
   assert.match(indexHtml, /class="affiliate-link-geo-tags" role="list"/);
   assert.match(indexHtml, /class="affiliate-link-geo-hint"/);
+  assert.match(linkEditorTemplate, /class="affiliate-link-label" type="hidden"/);
+  assert.doesNotMatch(linkEditorTemplate, /Вариант|affiliate-link-variant-label/);
+  assert.match(indexHtml, /\+ Добавить другой URL/);
   assert.doesNotMatch(indexHtml, /class="affiliate-link-geo"[^>]+required/);
+  assert.match(appCode, /row\.setAttribute\('role', 'group'\)/);
+  assert.match(appCode, /remove\.hidden = !hasMultipleRows/);
   assert.match(appCode, /validateAffiliateGeoRows\(\)/);
   assert.match(appCode, /groupAffiliateLinksForEditor\(item\.links\)/);
   assert.match(appCode, /expandAffiliateLinkEditorRows\(rows\)/);
@@ -60,6 +69,8 @@ test('affiliate CSS preserves compact list and mobile form order', () => {
   assert.match(styles, /\.affiliate-items\s*\{[^}]*gap:\s*0;[^}]*overflow:\s*hidden;/s);
   assert.match(styles, /\.affiliate-item\s*\{[^}]*grid-template-areas:\s*"logo copy links actions";/s);
   assert.match(styles, /\.affiliate-link-badge\.is-global/);
+  assert.match(styles, /\.affiliate-link-editor-row\s*\{[^}]*grid-template-columns:\s*1fr;[^}]*align-items:\s*start;/s);
+  assert.match(styles, /\.affiliate-link-geo-tags\s*\{[^}]*display:\s*flex;/s);
   assert.match(styles, /@media \(max-width: 1080px\)/);
   assert.match(styles, /\.affiliate-layout\.is-form-open \.affiliate-form\s*\{[^}]*grid-row:\s*1;/s);
   assert.match(styles, /\.affiliate-layout\.is-form-open \.affiliate-catalog\s*\{[^}]*grid-row:\s*2;/s);
