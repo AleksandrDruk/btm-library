@@ -76,7 +76,7 @@
           <span class="app-tile-icon" aria-hidden="true">↗</span>
           <span class="app-tile-copy">
             <strong>Affiliate Links</strong>
-            <span>Управлять GEO-ссылками и вариантами брендов</span>
+            <span>Управлять GEO-ссылками брендов</span>
           </span>
           <span class="app-tile-arrow" aria-hidden="true">→</span>
         </button>
@@ -232,13 +232,13 @@
 
           <fieldset class="affiliate-links-fieldset">
             <legend>Affiliate-ссылки</legend>
+            <p class="affiliate-links-intro">Один URL можно назначить нескольким GEO. Для другого URL добавьте отдельную ссылку.</p>
             <div id="affiliate-links-editor" class="affiliate-links-editor"></div>
-            <button id="affiliate-add-link" class="button button-secondary" type="button">Добавить ссылку</button>
-            <p class="field-hint">По умолчанию GLOBAL. Укажите GEO только для подтверждённой геоспецифичной ссылки.</p>
+            <button id="affiliate-add-link" class="button button-secondary" type="button">+ Добавить другой URL</button>
           </fieldset>
 
           <div class="field">
-            <label for="affiliate-tags">Теги через запятую</label>
+            <label for="affiliate-tags">Теги (необязательно)</label>
             <input id="affiliate-tags" type="text" maxlength="500" autocomplete="off" placeholder="vegas hero, casino">
           </div>
 
@@ -362,7 +362,16 @@
 
   <template id="affiliate-link-editor-template">
     <div class="affiliate-link-editor-row">
+      <div class="affiliate-link-editor-heading" hidden>
+        <strong class="affiliate-link-editor-title"></strong>
+        <button class="button button-link-danger affiliate-remove-link" type="button">Удалить</button>
+      </div>
       <input class="affiliate-link-id" type="hidden">
+      <input class="affiliate-link-label" type="hidden">
+      <div class="field affiliate-link-url-field">
+        <label class="affiliate-link-url-label">Affiliate URL</label>
+        <input class="affiliate-link-url" type="url" maxlength="4096" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://tracking.example/path?campaign=…" required>
+      </div>
       <div class="field affiliate-link-geo-field">
         <label class="affiliate-link-geo-label">GEO</label>
         <div class="affiliate-link-geo-control">
@@ -370,17 +379,8 @@
           <input class="affiliate-link-geo" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Добавить GEO">
         </div>
         <input class="affiliate-link-geos-value" type="hidden">
-        <p class="affiliate-link-geo-hint">Введите код и нажмите Enter. Можно добавить несколько.</p>
+        <p class="affiliate-link-geo-hint">GLOBAL — общий вариант. Добавьте к этому URL GEO-код, например AT, и нажмите Enter.</p>
       </div>
-      <div class="field affiliate-link-label-field">
-        <label class="affiliate-link-variant-label">Вариант</label>
-        <input class="affiliate-link-label" type="text" maxlength="60" autocomplete="off" placeholder="Например, Backup">
-      </div>
-      <div class="field affiliate-link-url-field">
-        <label class="affiliate-link-url-label">Конечный affiliate URL</label>
-        <input class="affiliate-link-url" type="url" maxlength="4096" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://tracking.example/path?campaign=…" required>
-      </div>
-      <button class="button button-link-danger affiliate-remove-link" type="button">Удалить ссылку</button>
     </div>
   </template>
 
