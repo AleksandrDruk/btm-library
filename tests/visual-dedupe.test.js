@@ -42,6 +42,42 @@ test('visual fingerprint tolerates small compression noise', () => {
   assert.ok(result.rms_channel_delta > 0);
 });
 
+test('visual fingerprint tolerates one isolated compression outlier', () => {
+  const original = rgba(34, 34, 34);
+  const compressed = new Uint8ClampedArray(original);
+  compressed[0] = 85;
+  compressed[1] = 85;
+  compressed[2] = 85;
+
+  const result = compareVisualFingerprints(
+    createVisualFingerprint(original, 1),
+    createVisualFingerprint(compressed, 1),
+  );
+  assert.equal(result.match, true);
+  assert.equal(result.max_channel_delta, 3);
+  assert.ok(result.rms_channel_delta < 0.35);
+});
+
+test('visual fingerprint rejects distributed low-contrast layout changes', () => {
+  const blank = rgba(0, 0, 0);
+  const changed = new Uint8ClampedArray(blank);
+  for (let pixel = 0; pixel < 20; pixel += 1) {
+    const offset = pixel * 4;
+    changed[offset] = 51;
+    changed[offset + 1] = 51;
+    changed[offset + 2] = 51;
+  }
+
+  const result = compareVisualFingerprints(
+    createVisualFingerprint(blank, 1),
+    createVisualFingerprint(changed, 1),
+  );
+  assert.equal(result.match, false);
+  assert.equal(result.max_channel_delta, 3);
+  assert.ok(result.rms_channel_delta > 0.35);
+  assert.ok(result.rms_channel_delta < 1);
+});
+
 test('visual fingerprint does not hide a small high-contrast mark', () => {
   const blank = rgba(255, 255, 255);
   const marked = new Uint8ClampedArray(blank);

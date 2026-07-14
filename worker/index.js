@@ -41,7 +41,7 @@ import {
   mergeAffiliateCatalogProposal,
 } from './github.js';
 
-const API_VERSION = '1.4.1';
+const API_VERSION = '1.4.2';
 const encoder = new TextEncoder();
 const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
 const MAX_METADATA_BYTES = 64 * 1024;

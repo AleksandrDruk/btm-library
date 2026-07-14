@@ -231,13 +231,13 @@ npm run session-secret
 
 ### 4. Deploy Worker
 
-Worker source использует API version `1.4.1`; production deploy выполняется отдельно после merge/approval. В проекте проверена закреплённая версия Wrangler `4.106.0`:
+Worker source использует API version `1.4.2`; production deploy выполняется отдельно после merge/approval. В проекте проверена закреплённая версия Wrangler `4.106.0`:
 
 Первый rollout выполняется двумя logo PR, потому что `validate-catalog` намеренно запускает validator из base `main`:
 
 1. merge foundation PR только с bootstrap-aware validator, visual fingerprint/index libraries и их тестами — без `visual-index.json` и без переключения UI/Worker;
 2. заморозить logo uploads, затем отдельным PR добавить `visual-index.json`, UI/Worker integration и остальной handoff; уже доверенный validator из `main` проверит SHA coverage и отсутствие visual collisions;
-3. после merge второго PR дождаться Pages и deploy Worker `1.4.1`, затем снять freeze.
+3. после merge второго PR дождаться Pages и deploy Worker `1.4.2`, затем снять freeze.
 
 Не объединяйте оба этапа в первый PR: candidate validator не считается trusted source.
 
@@ -249,7 +249,7 @@ npx --yes wrangler@4.106.0 deploy --secrets-file secrets.production.json
 `wrangler.jsonc` требует все семь secrets и не позволит production deploy с неполной конфигурацией. После успеха:
 
 1. Удалите локальный `secrets.production.json`.
-2. Откройте `<worker-url>/health`; ожидается `{"ok":true,"ready":true,"logo_ready":true,"affiliate_ready":true,"version":"1.4.1"}`. Этот endpoint подтверждает наличие обязательной конфигурации/bindings, но не заменяет отдельный успешный read approved affiliate snapshot.
+2. Откройте `<worker-url>/health`; ожидается `{"ok":true,"ready":true,"logo_ready":true,"affiliate_ready":true,"version":"1.4.2"}`. Этот endpoint подтверждает наличие обязательной конфигурации/bindings, но не заменяет отдельный успешный read approved affiliate snapshot.
 3. Укажите Worker URL и Turnstile site key в `config.json`.
 4. Проверьте, что CSP `index.html` содержит только точный origin production Worker и не расширен до `https://*.workers.dev`.
 5. Повторно выполните `npm test` и `npm run check`, затем push.
