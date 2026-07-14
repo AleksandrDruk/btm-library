@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 5,
+  "catalog_version": 6,
   "items": [
     {
       "id": "bet-republic-primary",
@@ -658,6 +658,60 @@
       "suggested_filename": "trips.webp",
       "version": 1,
       "tags": ["trips", "trips casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "vegashero-primary",
+      "brand": "VegasHero",
+      "variant": "Primary",
+      "path": "logos/vegashero/vegashero-primary-v1.png",
+      "suggested_filename": "vegashero.png",
+      "version": 1,
+      "tags": ["vegashero", "primary", "nz", "export"]
+    },
+    {
+      "id": "vegasino-primary",
+      "brand": "Vegasino",
+      "variant": "Primary",
+      "path": "logos/vegasino/vegasino-primary-v1.png",
+      "suggested_filename": "vegasino.png",
+      "version": 1,
+      "tags": ["vegasino", "primary", "nz", "export"]
+    },
+    {
+      "id": "winshark-primary",
+      "brand": "WinShark",
+      "variant": "Primary",
+      "path": "logos/winshark/winshark-primary-v1.jpg",
+      "suggested_filename": "winshark.jpg",
+      "version": 1,
+      "tags": ["winshark", "primary", "nz", "export"]
+    },
+    {
+      "id": "winspirit-primary",
+      "brand": "Winspirit",
+      "variant": "Primary",
+      "path": "logos/winspirit/winspirit-primary-v1.png",
+      "suggested_filename": "winspirit.png",
+      "version": 1,
+      "tags": ["winspirit", "primary", "nz", "nz2", "export"]
+    },
+    {
+      "id": "xon-compact",
+      "brand": "XON",
+      "variant": "Compact",
+      "path": "logos/xon/xon-compact-v1.jpg",
+      "suggested_filename": "xon-compact.jpg",
+      "version": 1,
+      "tags": ["xon", "compact", "nz", "nz2", "export"]
+    },
+    {
+      "id": "xon-wide",
+      "brand": "XON",
+      "variant": "Wide",
+      "path": "logos/xon/xon-wide-v1.png",
+      "suggested_filename": "xon-wide.png",
+      "version": 1,
+      "tags": ["xon", "wide", "nz", "export"]
     }
   ]
 }
