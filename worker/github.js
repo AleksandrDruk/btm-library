@@ -3,6 +3,7 @@ import { base64ToBytes, bytesToBase64, bytesToBase64Url } from '../lib/crypto.js
 const API_BASE = 'https://api.github.com';
 const API_VERSION = '2026-03-10';
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
+const VERSIONED_LOGO_PATH = /^logos\/[a-z0-9][a-z0-9-]{0,79}\/[a-z0-9][a-z0-9_-]{0,79}-v[1-9][0-9]*\.(?:jpg|png|webp)$/;
 const REQUIRED_AFFILIATE_CHECKS = ['code-checks', 'validate-catalog'];
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -27,6 +28,18 @@ function concatBytes(...parts) {
     offset += part.length;
   }
   return output;
+}
+
+function bytesToHex(bytes) {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function equalBytes(left, right) {
+  if (left.byteLength !== right.byteLength) return false;
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
 }
 
 function derLength(length) {
@@ -231,6 +244,13 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch, options = {}
   if (!/^[A-Za-z0-9._/-]+$/.test(catalogPath) || catalogPath.includes('..') || catalogPath.startsWith('/')) {
     throw new GitHubApiError('github_catalog_path_invalid', 'GitHub catalog path некорректен.', 503);
   }
+  const visualIndexPath = options.visualIndexPath === undefined ? '' : String(options.visualIndexPath);
+  if (
+    visualIndexPath
+    && (!/^[A-Za-z0-9._/-]+$/.test(visualIndexPath) || visualIndexPath.includes('..') || visualIndexPath.startsWith('/'))
+  ) {
+    throw new GitHubApiError('github_visual_index_path_invalid', 'GitHub visual index path некорректен.', 503);
+  }
   const token = await installationToken(configuration, access, fetchImpl);
   const requestedRef = options.ref === undefined ? '' : String(options.ref).trim().toLowerCase();
   if (requestedRef && !SHA_PATTERN.test(requestedRef)) {
@@ -252,11 +272,25 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch, options = {}
   }
 
   const encodedCatalogPath = catalogPath.split('/').map(encodeURIComponent).join('/');
-  const [commit, catalogFile] = await Promise.all([
+  const encodedVisualIndexPath = visualIndexPath.split('/').map(encodeURIComponent).join('/');
+  const [commit, catalogFile, visualIndexFile] = await Promise.all([
     apiRequest(coordinates, token, `/git/commits/${baseCommitSha}`, {}, fetchImpl),
     apiRequest(coordinates, token, `/contents/${encodedCatalogPath}?ref=${encodeURIComponent(baseCommitSha)}`, {}, fetchImpl),
+    visualIndexPath
+      ? apiRequest(
+        coordinates,
+        token,
+        `/contents/${encodedVisualIndexPath}?ref=${encodeURIComponent(baseCommitSha)}`,
+        {},
+        fetchImpl,
+      )
+      : null,
   ]);
-  if (typeof commit?.tree?.sha !== 'string' || typeof catalogFile?.content !== 'string') {
+  if (
+    typeof commit?.tree?.sha !== 'string'
+    || typeof catalogFile?.content !== 'string'
+    || (visualIndexPath && typeof visualIndexFile?.content !== 'string')
+  ) {
     throw new GitHubApiError('github_snapshot_invalid', 'Не удалось получить актуальный catalog.json.', 502);
   }
 
@@ -269,6 +303,17 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch, options = {}
     throw new GitHubApiError('github_catalog_invalid', 'Актуальный catalog.json содержит некорректный JSON.', 502);
   }
 
+  let visualIndex = null;
+  let visualIndexText = '';
+  if (visualIndexPath) {
+    try {
+      visualIndexText = decoder.decode(base64ToBytes(visualIndexFile.content.replace(/\s+/g, '')));
+      visualIndex = JSON.parse(visualIndexText);
+    } catch {
+      throw new GitHubApiError('github_visual_index_invalid', 'Актуальный visual-index.json содержит некорректный JSON.', 502);
+    }
+  }
+
   return {
     coordinates,
     token,
@@ -277,6 +322,9 @@ export async function getRepositorySnapshot(env, fetchImpl = fetch, options = {}
     catalogPath,
     catalog,
     catalogText,
+    visualIndexPath,
+    visualIndex,
+    visualIndexText,
   };
 }
 
@@ -555,7 +603,120 @@ async function createBlob(snapshot, content, encoding, fetchImpl) {
   return result.sha;
 }
 
-export async function createUploadPullRequest(snapshot, catalogText, changes, filesByIndex, fetchImpl = fetch) {
+async function gitBlobSha(bytes) {
+  const header = encoder.encode(`blob ${bytes.byteLength}\0`);
+  let digest;
+  try {
+    digest = await crypto.subtle.digest('SHA-1', concatBytes(header, bytes));
+  } catch {
+    throw new GitHubApiError('duplicate_check_unavailable', 'Проверка дубликатов временно недоступна.', 503);
+  }
+  return bytesToHex(new Uint8Array(digest));
+}
+
+async function repositoryLogoBlobs(snapshot, fetchImpl) {
+  const tree = await apiRequest(
+    snapshot.coordinates,
+    snapshot.token,
+    `/git/trees/${encodeURIComponent(snapshot.baseTreeSha)}?recursive=1`,
+    {},
+    fetchImpl,
+  );
+  if (!Array.isArray(tree?.tree) || tree.truncated !== false) {
+    throw new GitHubApiError(
+      'duplicate_check_incomplete',
+      'GitHub не вернул полное дерево логотипов; создание PR остановлено.',
+      502,
+    );
+  }
+
+  const blobs = new Map();
+  for (const entry of tree.tree) {
+    if (typeof entry?.path !== 'string' || !VERSIONED_LOGO_PATH.test(entry.path)) continue;
+    if (entry.type !== 'blob' || entry.mode !== '100644' || !SHA_PATTERN.test(entry.sha || '')) {
+      throw new GitHubApiError('duplicate_check_invalid_tree', 'GitHub вернул некорректную позицию логотипа.', 502);
+    }
+    const paths = blobs.get(entry.sha) || [];
+    paths.push(entry.path);
+    blobs.set(entry.sha, paths);
+  }
+  return blobs;
+}
+
+async function readRepositoryBlob(snapshot, sha, fetchImpl) {
+  const blob = await apiRequest(
+    snapshot.coordinates,
+    snapshot.token,
+    `/git/blobs/${encodeURIComponent(sha)}`,
+    {},
+    fetchImpl,
+  );
+  if (blob?.encoding !== 'base64' || typeof blob.content !== 'string') {
+    throw new GitHubApiError('duplicate_check_invalid_blob', 'GitHub не вернул содержимое существующего логотипа.', 502);
+  }
+  let bytes;
+  try {
+    bytes = base64ToBytes(blob.content.replace(/\s+/g, ''));
+  } catch {
+    throw new GitHubApiError('duplicate_check_invalid_blob', 'GitHub вернул повреждённое содержимое логотипа.', 502);
+  }
+  if (Number.isInteger(blob.size) && blob.size !== bytes.byteLength) {
+    throw new GitHubApiError('duplicate_check_invalid_blob', 'Размер существующего логотипа не совпадает с ответом GitHub.', 502);
+  }
+  return bytes;
+}
+
+async function assertUniqueUploadFiles(snapshot, changes, filesByIndex, fetchImpl) {
+  const uploads = changes.filter((change) => change.mode !== 'delete');
+  if (uploads.length === 0) return;
+
+  const existingBlobs = await repositoryLogoBlobs(snapshot, fetchImpl);
+  const batchBlobs = new Map();
+  const loadedExistingBlobs = new Map();
+
+  for (const change of uploads) {
+    const file = filesByIndex.get(change.file_index);
+    if (!file) {
+      throw new GitHubApiError('missing_upload_file', `Не найден файл для ${change.id}.`, 500);
+    }
+    const blobSha = await gitBlobSha(file.bytes);
+    const existingPaths = existingBlobs.get(blobSha);
+    if (existingPaths) {
+      let existingBytes = loadedExistingBlobs.get(blobSha);
+      if (!existingBytes) {
+        existingBytes = await readRepositoryBlob(snapshot, blobSha, fetchImpl);
+        loadedExistingBlobs.set(blobSha, existingBytes);
+      }
+      if (equalBytes(existingBytes, file.bytes)) {
+        throw new GitHubApiError(
+          'duplicate_image_content',
+          `Это изображение уже существует в архиве (${existingPaths[0]}).`,
+          409,
+        );
+      }
+    }
+
+    const previous = batchBlobs.get(blobSha);
+    if (previous && equalBytes(previous.bytes, file.bytes)) {
+      throw new GitHubApiError(
+        'duplicate_image_content',
+        `Изображение ${change.path} дублирует ${previous.path} в этой партии.`,
+        409,
+      );
+    }
+    batchBlobs.set(blobSha, { bytes: file.bytes, path: change.path });
+  }
+}
+
+export async function createUploadPullRequest(
+  snapshot,
+  catalogText,
+  changes,
+  filesByIndex,
+  fetchImpl = fetch,
+  visualIndexText = '',
+) {
+  await assertUniqueUploadFiles(snapshot, changes, filesByIndex, fetchImpl);
   const treeEntries = [];
 
   for (const change of changes) {
@@ -575,6 +736,10 @@ export async function createUploadPullRequest(snapshot, catalogText, changes, fi
 
   const catalogSha = await createBlob(snapshot, catalogText, 'utf-8', fetchImpl);
   treeEntries.push({ path: 'catalog.json', mode: '100644', type: 'blob', sha: catalogSha });
+  if (visualIndexText) {
+    const visualIndexSha = await createBlob(snapshot, visualIndexText, 'utf-8', fetchImpl);
+    treeEntries.push({ path: 'visual-index.json', mode: '100644', type: 'blob', sha: visualIndexSha });
+  }
 
   const tree = await apiRequest(
     snapshot.coordinates,

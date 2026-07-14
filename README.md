@@ -8,11 +8,15 @@
 После входа менеджер выбирает модуль на hub-экране. Оба модуля подготавливают изменения только через GitHub Pull Request; прямой записи в `main` нет.
 
 - Manifest: `https://raw.githubusercontent.com/AleksandrDruk/btm-library/main/catalog.json`
+- Visual index: `https://raw.githubusercontent.com/AleksandrDruk/btm-library/main/visual-index.json`
 - GitHub Pages после включения: `https://aleksandrdruk.github.io/btm-library/`
 - Текущий catalog schema: `1`
 - В `catalog_version: 2` загружены 13 изображений из наборов `AT LOGO` и `FI IMG`.
 
 Manager, Worker и trusted validator принимают schema `1` и `2`. Schema `2` добавляет обязательный lowercase SHA-256 каждого versioned image; Worker вычисляет digest по фактическим upload bytes, validator повторно сверяет файл из candidate tree, а совместимый WordPress-клиент проверяет digest после скачивания до создания attachment. Текущий `catalog.json` намеренно остаётся на schema `1`: migration на schema `2` выполняется отдельным PR только после merge trusted validator и rollout совместимого BTM на все сайты-потребители.
+
+`visual-index.json` не меняет logo catalog schema и не читается WordPress. Он хранит SHA-256 и компактный versioned visual fingerprint для каждого текущего и исторического versioned logo file; его `catalog_version` всегда совпадает с `catalog.json`.
+Индекс ограничен 1000 versioned-файлами и 900 КиБ, чтобы Worker всегда получал содержимое через GitHub Contents API; при достижении лимита новые logo PR блокируются fail-closed.
 
 Affiliate URL никогда не добавляются в этот публичный репозиторий, logo `catalog.json`, Pages HTML/JS или plugin ZIP. Worker читает и изменяет их в отдельном private repository через отдельную GitHub App.
 
@@ -33,7 +37,7 @@ GitHub Pages не хранит пароль и не может менять ре
 1. Менеджер вводит общий пароль и проходит Cloudflare Turnstile.
 2. Cloudflare Worker проверяет пароль и выдаёт подписанную сессию на 30 минут.
 3. Сессия хранится только в памяти вкладки; после refresh нужен новый вход.
-4. Worker повторно валидирует файлы и актуальный `catalog.json`.
+4. Worker повторно валидирует файлы, актуальные `catalog.json` и `visual-index.json`.
 5. GitHub App создаёт отдельную ветку, один атомарный commit и Pull Request.
 6. Logo PR объединяет владелец после `validate-catalog` и review.
 7. Affiliate PR публикуется через отдельный approval gate: Worker требует успешные `validate-catalog` и `code-checks`, `APPROVED` review владельца для точного head commit и только затем выполняет squash merge с SHA-lock.
@@ -113,15 +117,21 @@ Pretty-printed private `catalog.json` ограничен 900 КиБ: Worker от
 - Второй `Primary` для того же бренда — дубль и отклоняется до создания PR.
 - `id` стабилен при обновлении изображения.
 - Новая версия увеличивает `version`, получает новый versioned path, а старый файл остаётся неизменным.
-- Никаких хэшей, случайных идентификаторов или доменных префиксов в каталоге нет.
+- Хэши, случайные идентификаторы и доменные префиксы не добавляются в `id`, `path` или `suggested_filename`.
 - `suggested_filename` — только предложение. Перед импортом в WordPress менеджер может изменить имя; WordPress штатно добавит `-1`, если локальное имя уже занято.
+- Точные дубли определяются по содержимому файла, независимо от его имени, бренда, варианта и нового versioned path.
+- Дополнительный visual fingerprint строится из декодированной картинки: белый фон, contain-resize `16×16`, 4-bit RGB quantization, проверка RMS/max channel delta и пропорций. Он блокирует один логотип в разных JPEG/PNG/WebP-контейнерах и допускает небольшие артефакты повторного сжатия, но сохраняет разные цветовые варианты и materially разные пропорции.
+- Браузер fail-closed сверяет новый файл с текущей очередью и `visual-index.json` до отправки. Worker заново читает index из актуального `main`, повторяет visual check и только затем создаёт GitHub objects; устаревшая вкладка не обходит проверку.
+- Worker независимо вычисляет SHA-256 upload bytes и дополнительно сравнивает exact bytes со всеми versioned-файлами из recursive Git tree. Trusted validator связывает каждый visual-index item с точным SHA-256 файла, запрещает менять старые fingerprints и повторяет exact/visual checks для новых PR.
+- Visual fingerprint создаёт официальный Pages UI. Worker проверяет его формат и соответствие пропорциям фактического файла, но не декодирует JPEG/PNG/WebP повторно; поэтому visual layer защищает от случайных действий менеджера, а не от намеренно модифицированного клиента. Криптографическая exact-byte гарантия остаётся server/CI-authoritative.
+- Одинаковое имя при разных bytes и разной картинке не считается дублем. Имя используется только в сообщении пользователю.
 
 ## Удаление
 
 Интерфейс поддерживает два режима:
 
-1. **Удалить из каталога** — позиция исчезает из `catalog.json`, но versioned-файл остаётся. Это безопасный режим по умолчанию для 12-часового cache и last-known-good копии BTM.
-2. **Также удалить текущий файл** — позиция и текущий файл удаляются одним PR после дополнительного подтверждения. Старые Git commits всё равно сохраняют историю.
+1. **Удалить из каталога** — позиция исчезает из `catalog.json`, но versioned-файл и его visual-index entry остаются. Это безопасный режим по умолчанию для 12-часового cache и last-known-good копии BTM.
+2. **Также удалить текущий файл** — позиция, текущий файл и его visual-index entry удаляются одним PR после дополнительного подтверждения. Старые Git commits всё равно сохраняют историю.
 
 Удаление из центрального каталога не удаляет attachments, уже импортированные на WordPress-сайты. Оно также не меняет существующие таблицы BTM.
 
@@ -221,7 +231,15 @@ npm run session-secret
 
 ### 4. Deploy Worker
 
-Worker source использует API version `1.4.0`; production deploy выполняется отдельно после merge/approval. В проекте проверена закреплённая версия Wrangler `4.106.0`:
+Worker source использует API version `1.4.1`; production deploy выполняется отдельно после merge/approval. В проекте проверена закреплённая версия Wrangler `4.106.0`:
+
+Первый rollout выполняется двумя logo PR, потому что `validate-catalog` намеренно запускает validator из base `main`:
+
+1. merge foundation PR только с bootstrap-aware validator, visual fingerprint/index libraries и их тестами — без `visual-index.json` и без переключения UI/Worker;
+2. заморозить logo uploads, затем отдельным PR добавить `visual-index.json`, UI/Worker integration и остальной handoff; уже доверенный validator из `main` проверит SHA coverage и отсутствие visual collisions;
+3. после merge второго PR дождаться Pages и deploy Worker `1.4.1`, затем снять freeze.
+
+Не объединяйте оба этапа в первый PR: candidate validator не считается trusted source.
 
 ```bash
 npx --yes wrangler@4.106.0 login
@@ -231,7 +249,7 @@ npx --yes wrangler@4.106.0 deploy --secrets-file secrets.production.json
 `wrangler.jsonc` требует все семь secrets и не позволит production deploy с неполной конфигурацией. После успеха:
 
 1. Удалите локальный `secrets.production.json`.
-2. Откройте `<worker-url>/health`; ожидается `{"ok":true,"ready":true,"logo_ready":true,"affiliate_ready":true,"version":"1.4.0"}`. Этот endpoint подтверждает наличие обязательной конфигурации/bindings, но не заменяет отдельный успешный read approved affiliate snapshot.
+2. Откройте `<worker-url>/health`; ожидается `{"ok":true,"ready":true,"logo_ready":true,"affiliate_ready":true,"version":"1.4.1"}`. Этот endpoint подтверждает наличие обязательной конфигурации/bindings, но не заменяет отдельный успешный read approved affiliate snapshot.
 3. Укажите Worker URL и Turnstile site key в `config.json`.
 4. Проверьте, что CSP `index.html` содержит только точный origin production Worker и не расширен до `https://*.workers.dev`.
 5. Повторно выполните `npm test` и `npm run check`, затем push.
@@ -293,7 +311,7 @@ BTM кеширует проверенный каталог на 12 часов и
 
 ## Rollback
 
-- UI/Worker: вернуть предыдущий Git commit и повторить deploy.
+- Visual-index rollout: безопасный rollback — заморозить новые logo uploads, вернуть прежние Pages UI/Worker и **оставить** trusted validator, libraries и `visual-index.json` в `main`; существующий read-only logo catalog продолжит работать. Простой revert второго PR не пройдёт gate, потому что после bootstrap удалять index запрещено. Полный decommission требует двух PR: сначала отдельное trusted-validator правило для one-time removal, затем удаление index/интеграции. Предпочтителен fix-forward.
 - Компрометация общего пароля: сгенерировать новый `PASSWORD_HASH` и увеличить `SESSION_VERSION`, чтобы погасить существующие сессии.
 - Компрометация любого GitHub App key: удалить только соответствующий key в GitHub, создать новый и заменить его Worker secret.
 - Ошибочный PR: не approve и не публиковать. После публикации создайте исправляющий affiliate PR от текущего approved SHA; уже скопированные в WordPress значения и импортированные attachments откатываются отдельно.

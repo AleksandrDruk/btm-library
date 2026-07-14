@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { buildCatalogUpdate, CatalogError, validateCatalog } from '../lib/catalog.js';
 
 const emptyCatalog = () => ({ schema_version: 1, catalog_version: 1, items: [] });
-const image = (extension = 'png') => ({ extension, width: 200, height: 100, bytes: 1000 });
+const image = (extension = 'png', sha256 = '') => ({
+  extension,
+  width: 200,
+  height: 100,
+  bytes: 1000,
+  ...(sha256 ? { sha256 } : {}),
+});
 const digest = 'a'.repeat(64);
 
 test('same brand supports distinct variants without duplicate ids', () => {
@@ -106,5 +112,40 @@ test('schema 2 updates bind the catalog item to the uploaded image digest', () =
       [{ mode: 'new', brand: 'Other', variant: 'Primary', image: image() }],
     ),
     (error) => error.code === 'invalid_sha256',
+  );
+});
+
+test('batch rejects the same image bytes under different names', () => {
+  assert.throws(
+    () => buildCatalogUpdate(emptyCatalog(), [
+      { mode: 'new', brand: 'First', variant: 'Primary', image: image('png', digest) },
+      { mode: 'new', brand: 'Second', variant: 'Primary', image: image('png', digest) },
+    ]),
+    (error) => error.code === 'duplicate_image_content',
+  );
+});
+
+test('schema 2 rejects duplicate image digests in active catalog', () => {
+  const first = {
+    id: 'first-primary',
+    brand: 'First',
+    variant: 'Primary',
+    path: 'logos/first/first-primary-v1.png',
+    suggested_filename: 'first.png',
+    version: 1,
+    tags: [],
+    sha256: digest,
+  };
+  const second = {
+    ...first,
+    id: 'second-primary',
+    brand: 'Second',
+    path: 'logos/second/second-primary-v1.png',
+    suggested_filename: 'second.png',
+  };
+
+  assert.throws(
+    () => validateCatalog({ schema_version: 2, catalog_version: 2, items: [first, second] }),
+    (error) => error.code === 'duplicate_image_content',
   );
 });

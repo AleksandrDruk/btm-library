@@ -11,6 +11,12 @@ import {
   groupAffiliateLinksForEditor,
 } from './lib/affiliate-geo-editor.js';
 import { ImageValidationError, inspectImage } from './lib/image.js';
+import {
+  createVisualFingerprint,
+  VISUAL_SAMPLE_SIZE,
+  visualFingerprintsMatch,
+} from './lib/visual-dedupe.js';
+import { validateVisualIndex, VISUAL_INDEX_PATH } from './lib/visual-index.js';
 
 if (globalThis.top !== globalThis.self) {
   document.body.textContent = 'Встроенный режим отключён. Откройте библиотеку отдельной вкладкой.';
@@ -115,6 +121,7 @@ const state = {
   turnstileWidgetId: null,
   uploads: [],
   deletions: new Map(),
+  logoVisualIndex: { schema_version: 1, catalog_version: 1, items: [] },
   submitting: false,
   activeModule: 'login',
   affiliateCatalog: { schema_version: 2, catalog_version: 1, items: [] },
@@ -259,11 +266,21 @@ async function loadConfig() {
 
 async function loadCatalog(catalogUrl = RAW_CATALOG_URL) {
   try {
-    const response = await fetch(catalogUrl, { cache: 'no-store' });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    const visualIndexUrl = new URL(VISUAL_INDEX_PATH, catalogUrl).href;
+    const [catalogResponse, visualIndexResponse] = await Promise.all([
+      fetch(catalogUrl, { cache: 'no-store' }),
+      fetch(visualIndexUrl, { cache: 'no-store' }),
+    ]);
+    if (!catalogResponse.ok || !visualIndexResponse.ok) {
+      throw new Error(`HTTP catalog=${catalogResponse.status}, visual-index=${visualIndexResponse.status}`);
     }
-    state.catalog = validateCatalog(await response.json());
+    const catalog = validateCatalog(await catalogResponse.json());
+    const visualIndex = validateVisualIndex(await visualIndexResponse.json());
+    if (visualIndex.catalog_version !== catalog.catalog_version) {
+      throw new Error('Версии catalog.json и visual-index.json не совпадают.');
+    }
+    state.catalog = catalog;
+    state.logoVisualIndex = visualIndex;
     state.catalogLoadState = 'ready';
     updateHeaderSummary();
     populateAffiliateLogoOptions(elements.affiliateLogo.value);
@@ -540,7 +557,7 @@ async function decodeImage(file, expected) {
       if (bitmap.width !== expected.width || bitmap.height !== expected.height) {
         throw new Error('Размер после декодирования не совпадает с заголовком файла.');
       }
-      return;
+      return visualFingerprintFromSource(bitmap, bitmap.width, bitmap.height);
     } catch (error) {
       if (error instanceof ImageValidationError) throw error;
       throw new ImageValidationError('decode_failed', `Браузер не смог декодировать изображение: ${error.message}`);
@@ -551,15 +568,20 @@ async function decodeImage(file, expected) {
 
   const previewUrl = URL.createObjectURL(file);
   try {
-    const dimensions = await new Promise((resolve, reject) => {
+    const decoded = await new Promise((resolve, reject) => {
       const image = new Image();
-      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      image.onload = () => resolve({
+        image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      });
       image.onerror = () => reject(new Error('декодирование завершилось ошибкой'));
       image.src = previewUrl;
     });
-    if (dimensions.width !== expected.width || dimensions.height !== expected.height) {
+    if (decoded.width !== expected.width || decoded.height !== expected.height) {
       throw new ImageValidationError('decode_mismatch', 'Размер после декодирования не совпадает с заголовком файла.');
     }
+    return visualFingerprintFromSource(decoded.image, decoded.width, decoded.height);
   } catch (error) {
     if (error instanceof ImageValidationError) throw error;
     throw new ImageValidationError('decode_failed', `Браузер не смог декодировать изображение: ${error.message}`);
@@ -568,7 +590,91 @@ async function decodeImage(file, expected) {
   }
 }
 
+function visualFingerprintFromSource(source, width, height) {
+  const canvas = document.createElement('canvas');
+  canvas.width = VISUAL_SAMPLE_SIZE;
+  canvas.height = VISUAL_SAMPLE_SIZE;
+  const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+  if (!context) {
+    throw new ImageValidationError('visual_check_unavailable', 'Браузер не поддерживает визуальную проверку изображений.');
+  }
+
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, VISUAL_SAMPLE_SIZE, VISUAL_SAMPLE_SIZE);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  const scale = Math.min(VISUAL_SAMPLE_SIZE / width, VISUAL_SAMPLE_SIZE / height);
+  const drawWidth = width * scale;
+  const drawHeight = height * scale;
+  context.drawImage(
+    source,
+    (VISUAL_SAMPLE_SIZE - drawWidth) / 2,
+    (VISUAL_SAMPLE_SIZE - drawHeight) / 2,
+    drawWidth,
+    drawHeight,
+  );
+  const rgba = context.getImageData(0, 0, VISUAL_SAMPLE_SIZE, VISUAL_SAMPLE_SIZE).data;
+  return createVisualFingerprint(rgba, width / height);
+}
+
+function catalogAssetUrl(filePath) {
+  const configuredCatalogUrl = state.config?.catalogUrl || RAW_CATALOG_URL;
+  const catalogOrigin = new URL(configuredCatalogUrl).origin;
+  const assetBase = catalogOrigin === globalThis.location.origin
+    ? new URL('/', globalThis.location.href)
+    : new URL(RAW_ASSET_BASE);
+  return new URL(filePath, assetBase).href;
+}
+
+function duplicateImageMessage(file, image) {
+  const queued = state.uploads.find((upload) => upload.image.sha256 === image.sha256);
+  if (queued) {
+    return `${file.name}: это изображение уже выбрано как ${queued.file.name}.`;
+  }
+
+  const existing = state.logoVisualIndex.items.find((item) => item.sha256 === image.sha256);
+  if (existing) {
+    const catalogItem = state.catalog.items.find((item) => item.path === existing.path);
+    const owner = catalogItem
+      ? `${catalogItem.brand} — ${catalogItem.variant || 'Primary'}`
+      : existing.path;
+    return `${file.name}: это изображение уже есть в архиве (${owner}).`;
+  }
+
+  return '';
+}
+
+function visualDuplicateMessage(file, fingerprint) {
+  const queued = state.uploads.find((upload) => (
+    upload.visualFingerprint && visualFingerprintsMatch(upload.visualFingerprint, fingerprint)
+  ));
+  if (queued) {
+    return `${file.name}: картинка визуально совпадает с уже выбранным файлом ${queued.file.name}.`;
+  }
+
+  const existing = state.logoVisualIndex.items.find((entry) => (
+    visualFingerprintsMatch(entry.fingerprint, fingerprint)
+  ));
+  if (existing) {
+    const catalogItem = state.catalog.items.find((item) => item.path === existing.path);
+    const owner = catalogItem
+      ? `${catalogItem.brand} — ${catalogItem.variant || 'Primary'} (${existing.path})`
+      : existing.path;
+    return `${file.name}: картинка визуально совпадает с ${owner}.`;
+  }
+
+  return '';
+}
+
 async function addFiles(fileList) {
+  if (
+    state.catalogLoadState !== 'ready'
+    || state.logoVisualIndex.catalog_version !== state.catalog.catalog_version
+  ) {
+    elements.fileInput.value = '';
+    setStatus(elements.uploadStatus, 'Каталог или индекс отпечатков недоступен. Обновите страницу.');
+    return;
+  }
   const available = MAX_OPERATIONS - state.uploads.length - state.deletions.size;
   const files = Array.from(fileList).slice(0, Math.max(0, available));
   if (files.length === 0) {
@@ -577,6 +683,7 @@ async function addFiles(fileList) {
   }
 
   setStatus(elements.uploadStatus, 'Проверяем изображения…', 'info');
+  const rejected = [];
   for (const file of files) {
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -587,12 +694,21 @@ async function addFiles(fileList) {
       if (file.type && file.type !== image.mime) {
         throw new ImageValidationError('mime_mismatch', 'MIME файла не совпадает с его содержимым.');
       }
-      await decodeImage(file, image);
+      const duplicateMessage = duplicateImageMessage(file, image);
+      if (duplicateMessage) {
+        throw new CatalogError('duplicate_image_content', duplicateMessage);
+      }
+      const visualFingerprint = await decodeImage(file, image);
+      const visualDuplicate = visualDuplicateMessage(file, visualFingerprint);
+      if (visualDuplicate) {
+        throw new CatalogError('duplicate_image_visual', visualDuplicate);
+      }
       const inferred = inferMetadata(file.name, image.extension);
       state.uploads.push({
         key: crypto.randomUUID(),
         file,
         image,
+        visualFingerprint,
         previewUrl: URL.createObjectURL(file),
         mode: 'new',
         asset_id: '',
@@ -600,11 +716,18 @@ async function addFiles(fileList) {
         error: '',
       });
     } catch (error) {
-      setStatus(elements.uploadStatus, `${file.name}: ${error.message}`);
+      rejected.push(error instanceof CatalogError ? error.message : `${file.name}: ${error.message}`);
     }
   }
   elements.fileInput.value = '';
-  if (state.uploads.length > 0) {
+  if (rejected.length > 0) {
+    const visibleErrors = rejected.slice(0, 3).join(' ');
+    const hiddenCount = rejected.length - 3;
+    setStatus(
+      elements.uploadStatus,
+      `${visibleErrors}${hiddenCount > 0 ? ` Ещё отклонено: ${hiddenCount}.` : ''}`,
+    );
+  } else if (state.uploads.length > 0) {
     setStatus(elements.uploadStatus, '');
   }
   renderQueue();
@@ -724,12 +847,7 @@ function renderCatalogItems() {
     const pending = state.deletions.get(catalogItem.id);
     const preview = fragment.querySelector('.catalog-item-preview');
     const previewFallback = fragment.querySelector('.catalog-item-preview-fallback');
-    const configuredCatalogUrl = state.config?.catalogUrl || RAW_CATALOG_URL;
-    const catalogOrigin = new URL(configuredCatalogUrl).origin;
-    const previewBase = catalogOrigin === globalThis.location.origin
-      ? new URL('/', globalThis.location.href)
-      : new URL(RAW_ASSET_BASE);
-    preview.src = new URL(catalogItem.path, previewBase).href;
+    preview.src = catalogAssetUrl(catalogItem.path);
     preview.alt = `Логотип ${catalogItem.brand} — ${catalogItem.variant || 'Primary'}`;
     preview.addEventListener('error', () => {
       preview.hidden = true;
@@ -778,6 +896,7 @@ function metadataForSubmit() {
     suggested_filename: upload.suggested_filename,
     tags: upload.tags,
     image: upload.image,
+    visual_fingerprint: upload.visualFingerprint,
   }));
   const deletions = Array.from(state.deletions.values()).map((entry) => ({
     mode: 'delete',

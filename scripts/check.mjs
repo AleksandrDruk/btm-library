@@ -13,6 +13,8 @@ const javascriptFiles = [
   'lib/catalog.js',
   'lib/crypto.js',
   'lib/image.js',
+  'lib/visual-dedupe.js',
+  'lib/visual-index.js',
   'worker/github.js',
   'worker/affiliate-catalog-state.js',
   'worker/affiliate-nonce.js',
