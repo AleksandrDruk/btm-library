@@ -7,6 +7,12 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { validateCatalog } from '../lib/catalog.js';
 import { inspectImage } from '../lib/image.js';
+import {
+  MAX_VISUAL_INDEX_BYTES,
+  validateVisualIndex,
+  VISUAL_INDEX_PATH,
+} from '../lib/visual-index.js';
+import { visualFingerprintsMatch } from '../lib/visual-dedupe.js';
 
 const MAX_CATALOG_BYTES = 1024 * 1024;
 const MAX_LOGO_FILES = 5000;
@@ -26,6 +32,23 @@ async function readCatalog(root) {
   invariant(stats.size > 0 && stats.size <= MAX_CATALOG_BYTES, 'catalog.json превышает лимит 1 МиБ.');
   const raw = await readFile(file, 'utf8');
   return validateCatalog(JSON.parse(raw));
+}
+
+async function readVisualIndex(root, required = true) {
+  const file = path.join(root, VISUAL_INDEX_PATH);
+  let stats;
+  try {
+    stats = await lstat(file);
+  } catch (error) {
+    if (!required && error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  invariant(stats.isFile() && !stats.isSymbolicLink(), `${VISUAL_INDEX_PATH} должен быть обычным файлом.`);
+  invariant(
+    stats.size > 0 && stats.size <= MAX_VISUAL_INDEX_BYTES,
+    `${VISUAL_INDEX_PATH} превышает лимит 900 КиБ.`,
+  );
+  return validateVisualIndex(JSON.parse(await readFile(file, 'utf8')));
 }
 
 async function collectLogoFiles(root, relative = 'logos', state = { count: 0, directories: 0, bytes: 0 }) {
@@ -71,7 +94,17 @@ function sha256Hex(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function validateLogoFiles(catalog, files) {
+function validateLogoFiles(catalog, visualIndex, files) {
+  const visualItems = visualIndex
+    ? new Map(visualIndex.items.map((item) => [item.path, item]))
+    : null;
+  if (visualIndex) {
+    invariant(
+      visualIndex.catalog_version === catalog.catalog_version,
+      'catalog_version в catalog.json и visual-index.json должен совпадать.',
+    );
+    invariant(visualIndex.items.length === files.size, 'Visual index должен описывать каждый versioned logo file.');
+  }
   const catalogPaths = new Set(catalog.items.map((item) => item.path));
   for (const item of catalog.items) {
     invariant(files.has(item.path), `Файл из catalog.json отсутствует: ${item.path}`);
@@ -87,11 +120,63 @@ function validateLogoFiles(catalog, files) {
     const image = inspectImage(bytes);
     const extension = filePath.split('.').pop();
     invariant(extension === extensionForMime(image.mime), `MIME не совпадает с расширением: ${filePath}`);
+    if (visualItems) {
+      const visualItem = visualItems.get(filePath);
+      invariant(visualItem, `Visual index не содержит ${filePath}.`);
+      invariant(visualItem.sha256 === sha256Hex(bytes), `Visual index SHA-256 не совпадает: ${filePath}`);
+    }
 
     if (!catalogPaths.has(filePath)) {
       // Unlisted versioned files are valid immutable history.
       invariant(VERSIONED_LOGO_PATH.test(filePath), `Неописанный файл не является versioned history: ${filePath}`);
     }
+  }
+}
+
+function validateVisualIndexBootstrap(index) {
+  for (let left = 0; left < index.items.length; left += 1) {
+    for (let right = left + 1; right < index.items.length; right += 1) {
+      invariant(
+        !visualFingerprintsMatch(index.items[left].fingerprint, index.items[right].fingerprint),
+        `Изображение ${index.items[right].path} визуально дублирует ${index.items[left].path}.`,
+      );
+    }
+  }
+}
+
+function visualItemMap(index) {
+  return new Map(index.items.map((item) => [item.path, item]));
+}
+
+function validateVisualIndexTransition(baseIndex, candidateIndex, baseFiles, candidateFiles, catalogChanged) {
+  if (!catalogChanged) {
+    invariant(equalJson(baseIndex, candidateIndex), 'Каталог не менялся, но visual-index.json изменён.');
+    return;
+  }
+  invariant(
+    candidateIndex.catalog_version === baseIndex.catalog_version + 1,
+    'visual-index catalog_version должна увеличиться ровно на 1.',
+  );
+  const baseItems = visualItemMap(baseIndex);
+  const candidateItems = visualItemMap(candidateIndex);
+  for (const [filePath, baseItem] of baseItems) {
+    const candidateItem = candidateItems.get(filePath);
+    if (!candidateFiles.has(filePath)) {
+      invariant(!candidateItem, `Visual index сохранил удалённый файл: ${filePath}`);
+      continue;
+    }
+    invariant(candidateItem && equalJson(baseItem, candidateItem), `Visual fingerprint изменён: ${filePath}`);
+  }
+
+  const accepted = [...baseItems.values()].filter((item) => candidateFiles.has(item.path));
+  for (const candidateItem of candidateIndex.items) {
+    if (baseItems.has(candidateItem.path)) continue;
+    invariant(!baseFiles.has(candidateItem.path), `Visual index неожиданно добавил старый файл: ${candidateItem.path}`);
+    const duplicate = accepted.find((item) => (
+      visualFingerprintsMatch(item.fingerprint, candidateItem.fingerprint)
+    ));
+    invariant(!duplicate, `Изображение ${candidateItem.path} визуально дублирует ${duplicate?.path}.`);
+    accepted.push(candidateItem);
   }
 }
 
@@ -140,6 +225,33 @@ function isCatalogAsset(filePath) {
   return filePath === 'catalog.json' || filePath.startsWith('logos/');
 }
 
+function sameBytes(left, right) {
+  return left.byteLength === right.byteLength && left.equals(right);
+}
+
+function assertNoNewDuplicateImages(baseFiles, candidateFiles, allowedNewFiles) {
+  const contentOwners = new Map();
+  const remember = (filePath, bytes) => {
+    const digest = sha256Hex(bytes);
+    const owners = contentOwners.get(digest) || [];
+    owners.push({ filePath, bytes });
+    contentOwners.set(digest, owners);
+  };
+
+  for (const [filePath, bytes] of baseFiles) {
+    remember(filePath, bytes);
+  }
+
+  for (const filePath of [...allowedNewFiles].sort()) {
+    const bytes = candidateFiles.get(filePath);
+    invariant(bytes, `Новый файл отсутствует: ${filePath}`);
+    const digest = sha256Hex(bytes);
+    const duplicate = (contentOwners.get(digest) || []).find((owner) => sameBytes(owner.bytes, bytes));
+    invariant(!duplicate, `Изображение ${filePath} дублирует ${duplicate?.filePath}.`);
+    remember(filePath, bytes);
+  }
+}
+
 function validateMutation(baseCatalog, candidateCatalog, baseFiles, candidateFiles) {
   const baseItems = itemMap(baseCatalog);
   const candidateItems = itemMap(candidateCatalog);
@@ -174,6 +286,7 @@ function validateMutation(baseCatalog, candidateCatalog, baseFiles, candidateFil
   invariant(changedIds.size > 0, 'catalog_version изменён, но позиции каталога не изменились.');
   invariant(changedIds.size <= 20, 'Один PR может менять не более 20 позиций каталога.');
   invariant(candidateCatalog.catalog_version === baseCatalog.catalog_version + 1, 'catalog_version должна увеличиться ровно на 1.');
+  assertNoNewDuplicateImages(baseFiles, candidateFiles, allowedNewFiles);
 
   for (const [filePath, baseBytes] of baseFiles) {
     if (!isCatalogAsset(filePath) || filePath === 'catalog.json') continue;
@@ -193,15 +306,23 @@ function validateMutation(baseCatalog, candidateCatalog, baseFiles, candidateFil
 
 export async function validateRepository(candidateRoot, baseRoot = null) {
   const candidateCatalog = await readCatalog(candidateRoot);
+  const candidateVisualIndex = await readVisualIndex(candidateRoot, false);
   const candidateFiles = await collectLogoFiles(candidateRoot);
-  validateLogoFiles(candidateCatalog, candidateFiles);
+  validateLogoFiles(candidateCatalog, candidateVisualIndex, candidateFiles);
 
   if (baseRoot) {
     const baseCatalog = await readCatalog(baseRoot);
+    const baseVisualIndex = await readVisualIndex(baseRoot, false);
     const baseFiles = await collectLogoFiles(baseRoot);
+    validateLogoFiles(baseCatalog, baseVisualIndex, baseFiles);
+    invariant(
+      !baseVisualIndex || candidateVisualIndex,
+      'visual-index.json нельзя удалить после bootstrap.',
+    );
+    const catalogChanged = !equalJson(baseCatalog, candidateCatalog);
     if (baseCatalog.schema_version !== candidateCatalog.schema_version) {
       validateSchemaMigration(baseCatalog, candidateCatalog, baseFiles, candidateFiles);
-    } else if (equalJson(baseCatalog, candidateCatalog)) {
+    } else if (!catalogChanged) {
       for (const [filePath, baseBytes] of baseFiles) {
         if (!isCatalogAsset(filePath) || filePath === 'catalog.json') continue;
         const candidateBytes = candidateFiles.get(filePath);
@@ -214,6 +335,19 @@ export async function validateRepository(candidateRoot, baseRoot = null) {
     } else {
       validateMutation(baseCatalog, candidateCatalog, baseFiles, candidateFiles);
     }
+    if (baseVisualIndex && candidateVisualIndex) {
+      validateVisualIndexTransition(
+        baseVisualIndex,
+        candidateVisualIndex,
+        baseFiles,
+        candidateFiles,
+        catalogChanged,
+      );
+    } else if (candidateVisualIndex) {
+      validateVisualIndexBootstrap(candidateVisualIndex);
+    }
+  } else if (candidateVisualIndex) {
+    validateVisualIndexBootstrap(candidateVisualIndex);
   }
 
   return {

@@ -16,6 +16,13 @@ import {
 } from '../lib/affiliate-catalog.js';
 import { ImageValidationError, inspectImage, MAX_IMAGE_BYTES } from '../lib/image.js';
 import {
+  buildVisualIndexUpdate,
+  serializeVisualIndex,
+  validateVisualIndex,
+  VisualIndexError,
+  VISUAL_INDEX_PATH,
+} from '../lib/visual-index.js';
+import {
   AffiliateCatalogState,
   cacheApprovedAffiliateSnapshot,
   getApprovedAffiliateCommit,
@@ -34,7 +41,7 @@ import {
   mergeAffiliateCatalogProposal,
 } from './github.js';
 
-const API_VERSION = '1.4.0';
+const API_VERSION = '1.4.1';
 const encoder = new TextEncoder();
 const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
 const MAX_METADATA_BYTES = 64 * 1024;
@@ -302,18 +309,61 @@ async function handleUpload(request, env, origin, fetchImpl) {
       suggested_filename: entry?.suggested_filename,
       tags: entry?.tags,
       image,
+      visual_fingerprint: entry?.visual_fingerprint,
     });
   }
 
-  const snapshot = await getRepositorySnapshot(env, fetchImpl);
+  const snapshot = await getRepositorySnapshot(env, fetchImpl, { visualIndexPath: VISUAL_INDEX_PATH });
   const currentCatalog = validateCatalog(snapshot.catalog);
+  let currentVisualIndex;
+  try {
+    currentVisualIndex = validateVisualIndex(snapshot.visualIndex);
+  } catch {
+    throw new GitHubApiError(
+      'github_visual_index_invalid',
+      'Актуальный visual-index.json не прошёл проверку.',
+      502,
+    );
+  }
+  if (currentVisualIndex.catalog_version !== currentCatalog.catalog_version) {
+    throw new GitHubApiError(
+      'github_visual_index_stale',
+      'Версии catalog.json и visual-index.json в main не совпадают.',
+      502,
+    );
+  }
   const update = buildCatalogUpdate(currentCatalog, entries);
+  const visualOperations = update.changes.map((change) => {
+    if (change.mode === 'delete') {
+      return {
+        mode: 'delete',
+        path: change.path,
+        purge_file: change.purge_file === true,
+      };
+    }
+    const file = filesByIndex.get(change.file_index);
+    const entry = entries[change.file_index];
+    return {
+      mode: change.mode,
+      path: change.path,
+      sha256: file?.image?.sha256,
+      width: file?.image?.width,
+      height: file?.image?.height,
+      fingerprint: entry?.visual_fingerprint,
+    };
+  });
+  const visualUpdate = buildVisualIndexUpdate(
+    currentVisualIndex,
+    update.catalog.catalog_version,
+    visualOperations,
+  );
   const result = await createUploadPullRequest(
     snapshot,
     serializeCatalog(update.catalog),
     update.changes,
     filesByIndex,
     fetchImpl,
+    serializeVisualIndex(visualUpdate),
   );
 
   const expectedPrefix = `https://github.com/${snapshot.coordinates.owner}/${snapshot.coordinates.repo}/pull/`;
@@ -672,6 +722,10 @@ export async function handleRequest(request, env, context = {}, fetchImpl = fetc
       || error instanceof ImageValidationError
     ) {
       return jsonResponse({ ok: false, code: error.code, message: error.message }, 400, requestOrigin, env);
+    }
+    if (error instanceof VisualIndexError) {
+      const status = error.code.startsWith('duplicate_') ? 409 : 400;
+      return jsonResponse({ ok: false, code: error.code, message: error.message }, status, requestOrigin, env);
     }
     if (error instanceof GitHubApiError) {
       return jsonResponse({ ok: false, code: error.code, message: error.message }, error.status, requestOrigin, env);

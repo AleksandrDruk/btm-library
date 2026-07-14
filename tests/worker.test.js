@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateKeyPairSync } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import {
   bytesToBase64,
   createPasswordHash,
@@ -17,8 +17,10 @@ import {
   publishApprovedAffiliateSnapshot,
 } from '../worker/affiliate-catalog-state.js';
 import { handleRequest } from '../worker/index.js';
+import { createVisualFingerprint, VISUAL_SAMPLE_SIZE } from '../lib/visual-dedupe.js';
 
 const APPROVED_SHA = '1111111111111111111111111111111111111111';
+const GITHUB_APP_KEY_ENV = 'GITHUB_APP_PRIVATE_KEY';
 
 const emptyAffiliateCatalog = () => ({ schema_version: 2, catalog_version: 1, items: [] });
 
@@ -39,6 +41,24 @@ function pngBytes() {
   bytes.set([73, 69, 78, 68], 49);
   bytes.set([0, 0, 0, 0], 53);
   return bytes;
+}
+
+function gitBlobSha(bytes) {
+  return createHash('sha1')
+    .update(`blob ${bytes.byteLength}\0`)
+    .update(bytes)
+    .digest('hex');
+}
+
+function visualFingerprint(red = 40, green = 90, blue = 160) {
+  const pixels = new Uint8ClampedArray(VISUAL_SAMPLE_SIZE * VISUAL_SAMPLE_SIZE * 4);
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    pixels[offset] = red;
+    pixels[offset + 1] = green;
+    pixels[offset + 2] = blue;
+    pixels[offset + 3] = 255;
+  }
+  return createVisualFingerprint(pixels, 2);
 }
 
 function affiliateLink(geo, destinationUrl, options = {}) {
@@ -345,6 +365,8 @@ test('schema 2 logo upload binds catalog sha256 to the exact uploaded bytes', as
   const imageBytes = pngBytes();
   const expectedDigest = await sha256Hex(imageBytes);
   let candidateCatalog = null;
+  let candidateVisualIndex = null;
+  let candidateTree = null;
 
   const fetchMock = async (url, options = {}) => {
     const pathname = new URL(url).pathname;
@@ -358,17 +380,32 @@ test('schema 2 logo upload binds catalog sha256 to the exact uploaded bytes', as
       const catalog = { schema_version: 2, catalog_version: 3, items: [] };
       return Response.json({ content: Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`).toString('base64') });
     }
+    if (pathname.endsWith('/contents/visual-index.json')) {
+      const visualIndex = { schema_version: 1, catalog_version: 3, items: [] };
+      return Response.json({ content: Buffer.from(`${JSON.stringify(visualIndex, null, 2)}\n`).toString('base64') });
+    }
+    if (pathname.endsWith('/git/trees/logo-tree')) {
+      return Response.json({ truncated: false, tree: [] });
+    }
     if (pathname.endsWith('/git/blobs')) {
       const body = JSON.parse(options.body);
       if (body.encoding === 'utf-8') {
-        candidateCatalog = JSON.parse(body.content);
+        const parsed = JSON.parse(body.content);
+        if (parsed.schema_version === 1) {
+          candidateVisualIndex = parsed;
+          return Response.json({ sha: 'logo-visual-index-blob' });
+        }
+        candidateCatalog = parsed;
         return Response.json({ sha: 'logo-catalog-blob' });
       }
       assert.equal(body.encoding, 'base64');
       assert.deepEqual(Buffer.from(body.content, 'base64'), Buffer.from(imageBytes));
       return Response.json({ sha: 'logo-image-blob' });
     }
-    if (pathname.endsWith('/git/trees')) return Response.json({ sha: 'logo-new-tree' });
+    if (pathname.endsWith('/git/trees')) {
+      candidateTree = JSON.parse(options.body);
+      return Response.json({ sha: 'logo-new-tree' });
+    }
     if (pathname.endsWith('/git/commits')) return Response.json({ sha: 'logo-new-commit' });
     if (pathname.endsWith('/git/refs')) return Response.json({ ref: 'refs/heads/logo-upload/test' }, { status: 201 });
     if (pathname.endsWith('/pulls')) {
@@ -388,6 +425,7 @@ test('schema 2 logo upload binds catalog sha256 to the exact uploaded bytes', as
     variant: 'Primary',
     suggested_filename: 'digest-brand.png',
     tags: 'digest, primary',
+    visual_fingerprint: visualFingerprint(),
   }]));
   form.set('file_0', new File([imageBytes], 'digest-brand.png', { type: 'image/png' }));
 
@@ -399,6 +437,194 @@ test('schema 2 logo upload binds catalog sha256 to the exact uploaded bytes', as
 
   assert.equal(response.status, 201);
   assert.equal(candidateCatalog.items[0].sha256, expectedDigest);
+  assert.equal(candidateVisualIndex.items[0].sha256, expectedDigest);
+  assert.deepEqual(candidateTree.tree.map((entry) => entry.path), [
+    'logos/digest-brand/digest-brand-primary-v1.png',
+    'catalog.json',
+    'visual-index.json',
+  ]);
+});
+
+test('logo upload returns 409 for exact bytes already present in repository history', async () => {
+  const env = await environment();
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  Object.assign(env, {
+    GITHUB_APP_ID: String(Date.now() + 51),
+    [GITHUB_APP_KEY_ENV]: privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    GITHUB_OWNER: 'AleksandrDruk',
+    GITHUB_REPO: 'btm-library',
+    GITHUB_BASE_BRANCH: 'main',
+  });
+  const sessionToken = await createSessionToken(env.SESSION_SECRET, 300, env.SESSION_VERSION);
+  const imageBytes = pngBytes();
+  const blobSha = gitBlobSha(imageBytes);
+  const catalog = {
+    schema_version: 1,
+    catalog_version: 2,
+    items: [{
+      id: 'existing-primary',
+      brand: 'Existing',
+      variant: 'Primary',
+      path: 'logos/existing/existing-primary-v1.png',
+      suggested_filename: 'existing.png',
+      version: 1,
+      tags: ['existing'],
+    }],
+  };
+  let mutationCalled = false;
+
+  const fetchMock = async (url, options = {}) => {
+    const pathname = new URL(url).pathname;
+    if (pathname.endsWith('/installation')) return Response.json({ id: 152 });
+    if (pathname === '/app/installations/152/access_tokens') {
+      return Response.json({ token: 'test-only', expires_at: new Date(Date.now() + 3600_000).toISOString() });
+    }
+    if (pathname.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: APPROVED_SHA } });
+    if (pathname.endsWith(`/git/commits/${APPROVED_SHA}`)) return Response.json({ tree: { sha: 'logo-tree' } });
+    if (pathname.endsWith('/contents/catalog.json')) {
+      return Response.json({ content: Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`).toString('base64') });
+    }
+    if (pathname.endsWith('/contents/visual-index.json')) {
+      const visualIndex = {
+        schema_version: 1,
+        catalog_version: 2,
+        items: [{
+          path: catalog.items[0].path,
+          sha256: createHash('sha256').update(imageBytes).digest('hex'),
+          fingerprint: visualFingerprint(),
+        }],
+      };
+      return Response.json({ content: Buffer.from(`${JSON.stringify(visualIndex, null, 2)}\n`).toString('base64') });
+    }
+    if (pathname.endsWith('/git/trees/logo-tree')) {
+      return Response.json({
+        truncated: false,
+        tree: [{
+          path: catalog.items[0].path,
+          mode: '100644',
+          type: 'blob',
+          sha: blobSha,
+          size: imageBytes.byteLength,
+        }],
+      });
+    }
+    if (pathname.endsWith(`/git/blobs/${blobSha}`)) {
+      return Response.json({
+        encoding: 'base64',
+        content: Buffer.from(imageBytes).toString('base64'),
+        size: imageBytes.byteLength,
+      });
+    }
+    if (options.method === 'POST') mutationCalled = true;
+    throw new Error(`Unexpected request: ${pathname}`);
+  };
+
+  const form = new FormData();
+  form.set('metadata', JSON.stringify([{
+    mode: 'new',
+    asset_id: '',
+    brand: 'Other',
+    variant: 'Primary',
+    suggested_filename: 'other.png',
+    tags: 'other, primary',
+    visual_fingerprint: visualFingerprint(),
+  }]));
+  form.set('file_0', new File([imageBytes], 'other.png', { type: 'image/png' }));
+
+  const response = await handleRequest(new Request('https://api.example.test/upload', {
+    method: 'POST',
+    headers: authenticatedRequestHeaders(sessionToken),
+    body: form,
+  }), env, {}, fetchMock);
+  const body = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(body.code, 'duplicate_image_content');
+  assert.match(body.message, /logos\/existing\/existing-primary-v1\.png/);
+  assert.equal(mutationCalled, false);
+});
+
+test('logo upload rechecks a cross-format visual duplicate against current main', async () => {
+  const env = await environment();
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  Object.assign(env, {
+    GITHUB_APP_ID: String(Date.now() + 52),
+    [GITHUB_APP_KEY_ENV]: privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    GITHUB_OWNER: 'AleksandrDruk',
+    GITHUB_REPO: 'btm-library',
+    GITHUB_BASE_BRANCH: 'main',
+  });
+  const sessionToken = await createSessionToken(env.SESSION_SECRET, 300, env.SESSION_VERSION);
+  const existingBytes = pngBytes();
+  const uploadedBytes = new Uint8Array(existingBytes);
+  uploadedBytes[44] = 1;
+  const existingPath = 'logos/existing/existing-primary-v1.png';
+  const sharedFingerprint = visualFingerprint();
+  let mutationCalled = false;
+  const catalog = {
+    schema_version: 1,
+    catalog_version: 2,
+    items: [{
+      id: 'existing-primary',
+      brand: 'Existing',
+      variant: 'Primary',
+      path: existingPath,
+      suggested_filename: 'existing.png',
+      version: 1,
+      tags: ['existing'],
+    }],
+  };
+  const visualIndex = {
+    schema_version: 1,
+    catalog_version: 2,
+    items: [{
+      path: existingPath,
+      sha256: createHash('sha256').update(existingBytes).digest('hex'),
+      fingerprint: sharedFingerprint,
+    }],
+  };
+
+  const fetchMock = async (url, options = {}) => {
+    const pathname = new URL(url).pathname;
+    if (pathname.endsWith('/installation')) return Response.json({ id: 153 });
+    if (pathname === '/app/installations/153/access_tokens') {
+      return Response.json({ token: 'test-only', expires_at: new Date(Date.now() + 3600_000).toISOString() });
+    }
+    if (pathname.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: APPROVED_SHA } });
+    if (pathname.endsWith(`/git/commits/${APPROVED_SHA}`)) return Response.json({ tree: { sha: 'logo-tree' } });
+    if (pathname.endsWith('/contents/catalog.json')) {
+      return Response.json({ content: Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`).toString('base64') });
+    }
+    if (pathname.endsWith('/contents/visual-index.json')) {
+      return Response.json({ content: Buffer.from(`${JSON.stringify(visualIndex, null, 2)}\n`).toString('base64') });
+    }
+    if (options.method === 'POST') mutationCalled = true;
+    throw new Error(`Unexpected request: ${pathname}`);
+  };
+
+  const form = new FormData();
+  form.set('metadata', JSON.stringify([{
+    mode: 'new',
+    asset_id: '',
+    brand: 'Other',
+    variant: 'Primary',
+    suggested_filename: 'other.png',
+    tags: 'other, primary',
+    visual_fingerprint: sharedFingerprint,
+  }]));
+  form.set('file_0', new File([uploadedBytes], 'other.png', { type: 'image/png' }));
+
+  const response = await handleRequest(new Request('https://api.example.test/upload', {
+    method: 'POST',
+    headers: authenticatedRequestHeaders(sessionToken),
+    body: form,
+  }), env, {}, fetchMock);
+  const body = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(body.code, 'duplicate_image_visual');
+  assert.match(body.message, /logos\/existing\/existing-primary-v1\.png/);
+  assert.equal(mutationCalled, false);
 });
 
 test('affiliate approval gate publishes only an exact reviewed commit with both checks', async () => {

@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "catalog_version": 2,
+  "items": [
+    {
+      "path": "logos/bet-republic/bet-republic-primary-v1.webp",
+      "sha256": "98db4cdae2b819599ccf016117e57b7c993d25e6050a02f0360687b5bbabb93e",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "EkEkEkE0E0I0I1I1I1I1I0E0E0EkEkEkEkEkEkE0E0I0I1I1I1I1I0E0E0EkEkEkEkEkEkEkE0E0I0I0I0I0I0E0EkEkEkEkEkEkEkEkEkE0E0I0E0E0E0EkEkEkEkEkEjEkEkEkEkEkEkE0E0EkEkEkEkEkEkEjEjEjEkEkEkEkEkEkEkEkEkEkEkEkEjEjEjIzIjEkI0I0EkEkEkEkI0I0M1EkEjEjEjdyhyhymDmqiZiJiZVnqrmaqqeJI0EjEjZidididjZ3eJiZiJiJiZeIiJeIRDEjEjEjEjEjEjEjEjI0EjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEjEj"
+      }
+    },
+    {
+      "path": "logos/ivibet/ivibet-primary-v1.png",
+      "sha256": "83bd8f0a1461f165742f3fc2e5895e4874ce4457755e7b757aa8e47e382cb969",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3dipOHV3qqu73d3dvMu73d3d3dzd3d3d3dWIaIqqmaZ3iJiId3VmeImZeIeImZ3d3daYeZq7iZZmeIeId3VmVmZ3ZneImZ3d3dvMeImazMzMzMzMzMzMzMzMzMzMzM3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d"
+      }
+    },
+    {
+      "path": "logos/stone-vegas/stone-vegas-primary-v1.png",
+      "sha256": "e31b7a7fc98fbb2feb2143e555693207bf3a9059c3be0970b8218d6a5cb32520",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "dTdTdTdTdTdTdTdTdTdTdTdTdTdTdTdTdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDZDYyYyYyYydDdTdDdDdDdThThTZCYyYyYyUyUyUydDpztytzpypyuDyDtzhTYyUyUyUyUyYylk2U2Cxxphtx2B2C2TpkYyUyUyUiUiUylTxkxCxDxDpCxSxSxjhTUyUiUiQhQhUhYypCwyxCtCtCxCxCtSYyUhQhQhQhQhQhQhYxdCcyYxYxcycyYxQhQhQhQhQhQhQhQhQhQhQhQhQhQhQhQhQhQhQhQhMRMRMRMRMRMRMRMRMRMRMRMRMRMRMRMRMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQMQ"
+      }
+    },
+    {
+      "path": "logos/spinsup/spinsup-dark-v1.jpg",
+      "sha256": "ae387cc6687158ec27cbbbe0cfa2494aae5a25684ff23b24b70b21fefdcdf320",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiUkYkIiIiIiMzIiIiIiIiIiIiMiIiIiQjglcldnd3ZmZmVVVVZFglUkgmclIiIiMjYkQjVFd3iIZmZmd3ZVclQjUjUkIiIiMjQjMiMiMzMzIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIi"
+      }
+    },
+    {
+      "path": "logos/slotsgem/slotsgem-primary-v1.jpg",
+      "sha256": "c93ace9a748100e20f45ff3945c60901dce23f269be648a07e01e1eeadd328ce",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "ERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERMzIiIiREMzMzMzIhQxQxMhQxIhERERIiu7qqd3qqu7iImZhxZhhxqAygMhERERMzmZzMiIiImZVVmZqBhxqAuRygERERERIiREVVREIiMzMzMzRBMhQxMxMxERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERER"
+      }
+    },
+    {
+      "path": "logos/fortune-play/fortune-play-primary-v1.jpg",
+      "sha256": "99153ca3fe438fb7aa2276cfa5837f8245b767ce442b66d7778d3a3187e1bd93",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////3cqpqZ7u//////////////////////7uZmZlVUh37u////////////////////uqVUl1mGVE3d////////////////////uqIjh1ZVMz3d////////////////////7uVmREREd47u//////////////3dVWiIiZVWZmVWiJRFZnd37u////////7uqrqqqqiIu7u6d3iIeId37u////////////////7c7c7c7u////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/rooster-bet/rooster-bet-primary-v1.png",
+      "sha256": "4661e7214a85229ad2a1f61a92f3c57060181d580f8f53a1bf68c692c2bacd10",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBEAMRIBIBIBAAAAAAAAAAAAAAAAAAAAUidEgikRkRcRIRAAAAAAAAAAAAAAAAAAciy7l3gjsBsRcREBAAAAAAAAAAAAAAAAUiuqZWl4cjoBoRIBAAAAAAAAAAAAAAAAIRl3zMYzcRchlBIRAAAAAAAAAAAAAAAAQRhE3ddWYBkRqHUiEAAAABAAAAAAAAAAIBgiqamIkSozqIYiIAAAAAAAAAAAAAAAAAIRYzVEUiqIYiEAEAAAAAAAAAAAAAAAAAAAQRl3mIhUEBAAAAAAAAAAAAAAAAAAAAAAEBUilVMRAAAAAAAAAAAAAAEAQRQRQRURURURYRURURURURQREAAAAAIBkRohohshohohohgRkRshshohIBAAAAEBQRQRQRQRURQRQRMRMRUhhEdEIRAAAAAAAAAAEBEAEBABEBABABIiREQ0ERAAAAAAABAAAAABAAAAAAAAAAABERABABAA"
+      }
+    },
+    {
+      "path": "logos/miilioner/miilioner-primary-v1.webp",
+      "sha256": "8575e0a9c75d862a1f0fbbda6ab650d8d4028876572097505112f9f51e9710a3",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "ARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARASASASASASASASASASASASASASASASASEiESEiIiEiEiEiEiESESESEiIjESASESVUZmiHZmd2ZmVmaId2d2d2d2d2VVESESREdlZVVUVUVEVUVlVUVEZVVUdlQzESESEiESESESESESESESESESESESESIiESASASASASASASASASASASASASASASASASASESESASASASASASASASASASASASESASASESESESESESASESASESASESESESESESASASASASASASASASASASASASASASASASASASASASASASASASASASASASASASASASESESESESESESESESESESESESESESESES"
+      }
+    },
+    {
+      "path": "logos/alawin/alawin-primary-v1.png",
+      "sha256": "ca1929e491b06af80b1588eac8b790cd5524fb33e8eecd4eebd772cbb4dd15d5",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 0.995305,
+        "data": "ICIDIDIDMDMDMDMDMDMDMDMDIDIDIDICIDIDMDMDMEMEMEMEMEMEMEMEMDMDMDIDIDMDMEMEQEQEQFQFQFQFQEQEMEMEMDMDMDMDMEQEQFQFUVUVUVUVQFQFQEQEMEMDMDMEQEQVUVUWYWYWYWUWUWUVQVQFQEMDMDQEcnlmlXc4YoUXQVUlc2c1UVYWk5MEMDQUYkuFyUc1lVlVhEdEpzp0lklVtLUVMDYkpkyUyThEuEuEtzyTuDtzyTt0c2UVQTc0lTlTtjpTtjpTlDhDlTlUtmtmlIQUQDYzUUUVYVYVYlYWYWcmQUQUhIgpUWMEMEQEQFUVUWYWYXYXcXYWYmYmUVQVQEMEMDQEQFQFUVUWYWYWYWYWYWUWUVQFQEMEMDMEQEQFQVUVUWUWUWUWUVUVQFQEMEMDMDMEMEQEQFQFQFUVUVUVQVQFQEQEMEMDIDMDMDMEMEQEQEQEQEQEQEQEMEMEMDMDIDIDMDMDMDMEMEMEMEMEMEMEMDMDMDID"
+      }
+    },
+    {
+      "path": "logos/ninlay/ninlay-exact-dark-v1.jpg",
+      "sha256": "ac0a3ff428e608c79928285c63c21c594fc67b8e132bd9b5349c8ab6486a1728",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "EREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREiFEFWFEEzFEFEESEREREREREREREREREiFEFmFEFVFVFVERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERER"
+      }
+    },
+    {
+      "path": "logos/lanista/lanista-primary-v1.webp",
+      "sha256": "7a3f13255d4bb3d4aead63916abf31aec13b1ef2f43fa619424d95b70ed6bfe0",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "hlhlhlhlhlhlhlhlh1h1h1hlh1hlhlhlhlhlhlhlhlhlhlhlhlhlh1hlhlhlhlhlhlhlhlhkhlhlhlhlhlhlhlhlhlhlhlhlhlhkhkhkhkhkhkhlhlhlhlhlhlhlhlhlhlhlhkhkdkdkhkhkhlhlhlhkhlhlhlhkdUdkZEdUZUZUZUZUZUdUdUdUZUdkZUhkdTuUUyuVZTqFl0hjhjl0dTp0dTqEdkdkdTuVZDqEhkuUymhjZThjVCl0UyuUqFdUZTuWdTVClzl0hjdTdTl0ZChjdSl0uWZUZDljhjZCUyZTZEZUh2h2dlVDZCVCdTZDZDVDVDVDQyQyUzVDZUdVZUVDZDZUZUdUdUdUdUdUdUZUdUdUdUdUdUdUdUdUdUdUZUZUdUdUdUdUdUdUdUZUdUdUZUdUdUdUZUZUZUZUdUdUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZUZEZDZEZUZUZUZUZUZTZTZUZUZUZUZUZU"
+      }
+    },
+    {
+      "path": "logos/slotuna/slotuna-primary-v1.webp",
+      "sha256": "885f551bfad03d526535f4f8a7c39ba47cc50cbfe895a52e7604457772fc8480",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "////////////////////////////////////////////////////////////////////////////////////////////////////////////3umrma3d//////////////////////3uireaeJea3u////////////////////mrVomriraJvN////////////////////iZRnRWRWRnq7////////////////////vMRnRWRWRXvM//////////////////////vNiaiau87///////////7u7u7/////7/7u3e3u7/7u7u//7v7u//7u3dzd7vzN3e3ezN7u3e3uzN3e3ezd7u3e3dzd3ezN3u7v3e7/3e3u3e7u3e7u3e////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/sportuna/sportuna-primary-v1.webp",
+      "sha256": "73396d8dba3daf7edad7d70b1d26e7fc0f546149c00e984e7025eeb3dee1c33a",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "ERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERIiIiIiERERERERERERERERERERERERERIiIiIiERERERERERERERERERERERERERIiIiIhIhERERERERERERERERERERERIiIhIhIhIxRBNBIhERERIiIiIiIiIiERIiIiIiIiIiVRRCMyMyIiIiIiIiIiIiIiVVmZmZmZmZiIqqmZiIiHiHmZmZZmIiIiZmu7qqmZqqqqqqiId3qqqqmYu7ZmIiIiMzMzMzIiMzMzMzMzIiMzMzMzRDIiIiERERERERERERIhIiIiIiIiIyMyIiIiIiERERERERERIiIiIiIiIiIiIiIiIiIiIiERERERERERIiIiIiIiIiIiIiIiIiIiIiERERERERERIiIiIiIiIiIiIiIiIiIiIiERERERERERIiIiIiIiIiIiIiIiIiIiIiERERERERERIiIiIiIiIiIiIiIiIiIiIi"
+      }
+    }
+  ]
+}

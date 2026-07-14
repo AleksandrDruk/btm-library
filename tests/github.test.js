@@ -1,11 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateKeyPairSync } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import {
   createAffiliateCatalogPullRequest,
   createUploadPullRequest,
   getRepositorySnapshot,
 } from '../worker/github.js';
+
+function gitBlobSha(bytes) {
+  return createHash('sha1')
+    .update(`blob ${bytes.byteLength}\0`)
+    .update(bytes)
+    .digest('hex');
+}
 
 test('GitHub App snapshot flow accepts the downloaded PKCS1 key and least-privilege token scope', async () => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -88,6 +95,93 @@ test('GitHub tree removes only files explicitly marked for purge', async () => {
     { path: 'logos/purge/purge-primary-v1.png', mode: '100644', type: 'blob', sha: null },
     { path: 'catalog.json', mode: '100644', type: 'blob', sha: 'catalog-blob' },
   ]);
+});
+
+test('logo upload rejects bytes already present in the repository before any mutation', async () => {
+  const snapshot = {
+    coordinates: { owner: 'AleksandrDruk', repo: 'btm-library', branch: 'main' },
+    token: 'test-only',
+    baseCommitSha: 'base-commit',
+    baseTreeSha: 'base-tree',
+  };
+  const bytes = new Uint8Array([1, 2, 3, 4, 5]);
+  const blobSha = gitBlobSha(bytes);
+  let mutationCalled = false;
+
+  const fetchMock = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname;
+    if (pathname.endsWith('/git/trees/base-tree')) {
+      assert.equal(parsed.searchParams.get('recursive'), '1');
+      return Response.json({
+        truncated: false,
+        tree: [{
+          path: 'logos/existing/existing-primary-v1.png',
+          mode: '100644',
+          type: 'blob',
+          sha: blobSha,
+          size: bytes.byteLength,
+        }],
+      });
+    }
+    if (pathname.endsWith(`/git/blobs/${blobSha}`)) {
+      return Response.json({
+        encoding: 'base64',
+        content: Buffer.from(bytes).toString('base64'),
+        size: bytes.byteLength,
+      });
+    }
+    if (options.method === 'POST') mutationCalled = true;
+    throw new Error(`Unexpected GitHub request: ${pathname}`);
+  };
+
+  await assert.rejects(
+    () => createUploadPullRequest(snapshot, '{}\n', [{
+      mode: 'new',
+      file_index: 0,
+      id: 'other-primary',
+      path: 'logos/other/other-primary-v1.png',
+      brand: 'Other',
+    }], new Map([[0, { bytes }]]), fetchMock),
+    (error) => error.code === 'duplicate_image_content'
+      && error.status === 409
+      && error.message.includes('logos/existing/existing-primary-v1.png'),
+  );
+  assert.equal(mutationCalled, false);
+});
+
+test('logo duplicate check fails closed for incomplete recursive Git trees', async () => {
+  const snapshot = {
+    coordinates: { owner: 'AleksandrDruk', repo: 'btm-library', branch: 'main' },
+    token: 'test-only',
+    baseCommitSha: 'base-commit',
+    baseTreeSha: 'base-tree',
+  };
+  const change = {
+    mode: 'new',
+    file_index: 0,
+    id: 'other-primary',
+    path: 'logos/other/other-primary-v1.png',
+    brand: 'Other',
+  };
+  const files = new Map([[0, { bytes: new Uint8Array([9, 8, 7]) }]]);
+
+  for (const tree of [{ tree: [] }, { truncated: true, tree: [] }]) {
+    await assert.rejects(
+      () => createUploadPullRequest(
+        snapshot,
+        '{}\n',
+        [change],
+        files,
+        async (url) => {
+          const parsed = new URL(url);
+          assert.ok(parsed.pathname.endsWith('/git/trees/base-tree'));
+          return Response.json(tree);
+        },
+      ),
+      (error) => error.code === 'duplicate_check_incomplete',
+    );
+  }
 });
 
 test('private affiliate snapshot requests a read-only installation token', async () => {
