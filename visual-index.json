@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 6,
+  "catalog_version": 7,
   "items": [
     {
       "path": "logos/bet-republic/bet-republic-primary-v1.webp",
@@ -540,15 +540,6 @@
         "version": 1,
         "aspect_ratio": 1,
         "data": "ESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESISIiISESESESESISESESESESESESESESVCdhVCZmQ0VFQ0ZnM0M0ESESESESESESRChxVCZnh4ZnZWZnVWQ0ESESESESESESISIiISISITISISISISESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESESES"
-      }
-    },
-    {
-      "path": "logos/spincity/spincity-square-dark-v1.png",
-      "sha256": "1ff57447088d3bb0a05a18efdd1550adb7754fda46a22db53abd0aa8a74692e0",
-      "fingerprint": {
-        "version": 1,
-        "aspect_ratio": 1,
-        "data": "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7u////////////////////////////zKuluo3c7t7u7t7d7c7c//////////7uql2xmC2yuUuUuTyTyjqE7u////////3ed1hyZTqCqChyhyVTZTdk7u////////3eI1I0RDqCuSuSuTh1yjqX7u////////3eI1EkREuTmEySykzK22zL//////////7uZoVnzMqXiGqozL3d7t7u////////////7u7u//7u7u////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
       }
     },
     {
