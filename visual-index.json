@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 5,
+  "catalog_version": 6,
   "items": [
     {
       "path": "logos/bet-republic/bet-republic-primary-v1.webp",
@@ -657,6 +657,60 @@
         "version": 1,
         "aspect_ratio": 1,
         "data": "//////////////////////////////////////////////////////////////////////////////////////////////////7u3N/v//////////////////////////7up6yL7e/////////////////////////vybo3xY68/v//////////////////////28s3sl01557d7u7u7u7u7u7u//////2ss3s2kUcTYjZFiIeId4ZnZnmZ7u//ysomsmw2tXo1dWd3iIeIiJmqeId37u//ppomwm2Jy7qqu7u7u7u7zMzMzMzMzM3dx6sm1o3NiJmqd3ZmZnZnmZiZd4Znd4d42rxX7d7uzMvMzMzMu7u7u7u7zMu7u7u77d7M////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/vegashero/vegashero-primary-v1.png",
+      "sha256": "e698607017887389296fb1a8143afc1961bb28cb6c96db98f9bf5ce93f90f31d",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERESARAAAAAAAAAAAAAAAAAAAAIRMiVFiaq8VnRWRWVnRWZ4IiAAAAAAIRpU1kt3qrqrmbqsiaqriaZ5IjAAAAERhT1TshpEqrZ4ZombiaibZ5iaEiAAAAYy1loxQiRFiaRoeKiaeKZ5eKZ4ESAAAAgi5UsyMjRFiamrq8q8iaq8RGERAAAAAAUR1D1UtEpmu8q8q8q8mrmrRGAAAAAAAAEAghwyszlWiaibVniambiaI0AAAAAAAAAAEAQRYhZWVoZ4ZoVoVXVnESAAAAAAAAAAAAAAAAERERERERERARABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "path": "logos/vegasino/vegasino-primary-v1.png",
+      "sha256": "eca689bd4ba8ed23c6cabbda4b64feccd6291d5480ce2fe48848d7d150716665",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7u7t7t3K7t7t7t7t/+7t///+3b//////7t7u7t/u7u/+7u3c/u7u///+/u/+///+7tzK7t7uzL7tzc/u/u/u///+/u//7t3b3c3L3b3L7c3L3b3L3L3c3L3b3b/u/u7u7u7t7t7u/u7u7d7t7u/u7t7t7t/+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/winshark/winshark-primary-v1.jpg",
+      "sha256": "2928185ed550cb68bd931846d8675f3df8e557ea33e7594598871d8c2d83f35c",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "ERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERESESERERERERERERERERERERERERERMzVVESERERERERERERERERERERERESI0VmVmNFEjESERERERERERERERERERNWRVR3V3V3R3ESERERERERERERERESRWaaeaiqiqiqWIEiERERERERERERERESRWV3VneIRVRmV4ESEREREREREREREREiiJiImZiIiIiIiZiIIjERERERERERERESRENEREREZmVVRENEESERERERERERERERERERERESMzESERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERER"
+      }
+    },
+    {
+      "path": "logos/winspirit/winspirit-primary-v1.png",
+      "sha256": "a69d1d3c1940d62d1ee53bb401480be4693be5a64d99694aa8f2fd4685c5de6c",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "MkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkQ2ZYdWhVMkM0M1M0M1M1MkMkMkMkMkdGc5k6pXdFMkZnqad4h4maVWMkMkMkQ1g4tatJk4ZHM0ZXiJiJiJmaRFM1M1MkM1lJ1bo5tZY2MkiJZnqrmaiJqad4maM1MkhIg4g4k4QkMkZniJd4iJd4d4ZXd4MkMkQlMlRGMkMkMkM0M0MkM0MkM0MkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMk"
+      }
+    },
+    {
+      "path": "logos/xon/xon-compact-v1.jpg",
+      "sha256": "7b0703e877ba168a41b482c789524bd45d89f513e623c61b568fe4d223868ab1",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "EiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEjNHNHEjI1NYJFEiEjEjEjEiEjEiEjEiEjQ3k7VIZKZbI1E0F5F5F5FWF5FFFnEjEiEjVIo7hLI1FnFoGtJXG9GJGcGtCtE0EiEjU3wrg6IkJYFoGsFWC9GJFoE1GbE0EjUlwZc5k6c5I0JFKLJ7KLFXFWEjFoE0IjU4U5EjM2ZKM2EjEjEjEjEjEjEiEjEjEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEi"
+      }
+    },
+    {
+      "path": "logos/xon/xon-wide-v1.png",
+      "sha256": "cc08622441c7d00a2f36029bfe2d5d703d5fa6ee7c6dc1e7b3786d97d6ea5545",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAICAAAAIBEBARBEBEAiARAzBEBEAiAAEBkmUTQTgmISB4B3B3B4AzCaB4B3CJARAAIBcVcVMSAiCZARARB4BVCJAiAACZAjAAIBcVcVMSAiCZARARB4BVCJAiAACZAjEBkmUTQTgmISB4B3B3B4AzCIASAACJAiAAICAAAAIBEBARBEBEAiARAiARAAAiARAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       }
     }
   ]
