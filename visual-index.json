@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 7,
+  "catalog_version": 8,
   "items": [
     {
       "path": "logos/bet-republic/bet-republic-primary-v1.webp",
@@ -684,15 +684,6 @@
         "version": 1,
         "aspect_ratio": 1,
         "data": "MkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkQ2ZYdWhVMkM0M1M0M1M1MkMkMkMkMkdGc5k6pXdFMkZnqad4h4maVWMkMkMkQ1g4tatJk4ZHM0ZXiJiJiJmaRFM1M1MkM1lJ1bo5tZY2MkiJZnqrmaiJqad4maM1MkhIg4g4k4QkMkZniJd4iJd4d4ZXd4MkMkQlMlRGMkMkMkM0M0MkM0MkM0MkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMkMk"
-      }
-    },
-    {
-      "path": "logos/xon/xon-compact-v1.jpg",
-      "sha256": "7b0703e877ba168a41b482c789524bd45d89f513e623c61b568fe4d223868ab1",
-      "fingerprint": {
-        "version": 1,
-        "aspect_ratio": 1,
-        "data": "EiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEjNHNHEjI1NYJFEiEjEjEjEiEjEiEjEiEjQ3k7VIZKZbI1E0F5F5F5FWF5FFFnEjEiEjVIo7hLI1FnFoGtJXG9GJGcGtCtE0EiEjU3wrg6IkJYFoGsFWC9GJFoE1GbE0EjUlwZc5k6c5I0JFKLJ7KLFXFWEjFoE0IjU4U5EjM2ZKM2EjEjEjEjEjEjEiEjEjEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEiEi"
       }
     },
     {
