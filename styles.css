@@ -1127,9 +1127,17 @@ h3 {
 
 .affiliate-link-summary {
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr);
+  grid-template-columns: 96px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.affiliate-link-geos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -1440,7 +1448,7 @@ code {
   }
 
   .affiliate-link-summary {
-    grid-template-columns: 70px minmax(0, 1fr);
+    grid-template-columns: 96px minmax(0, 1fr);
     gap: 8px;
   }
 

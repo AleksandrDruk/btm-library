@@ -187,7 +187,10 @@ function formatAdditionalLinkCount(count) {
 }
 
 function affiliateCatalogSummary(catalog) {
-  const links = catalog.items.reduce((total, item) => total + item.links.length, 0);
+  const links = catalog.items.reduce(
+    (total, item) => total + groupAffiliateLinksForEditor(item.links).length,
+    0,
+  );
   return `${formatBrandCount(catalog.items.length)} · ${formatLinkCount(links)} · версия ${catalog.catalog_version}`;
 }
 
@@ -1516,9 +1519,10 @@ function renderAffiliateItems() {
     const previewFallback = fragment.querySelector('.affiliate-item-preview-fallback');
     const editButton = fragment.querySelector('.edit-affiliate');
     const editButtonId = `btm-affiliate-edit-${item.id}`;
+    const logicalLinks = groupAffiliateLinksForEditor(item.links);
     fragment.querySelector('.affiliate-item-name').textContent = item.brand;
-    const geos = [...new Set(item.links.map((link) => link.geo))];
-    fragment.querySelector('.affiliate-item-meta').textContent = `${formatLinkCount(item.links.length)} · ${geos.join(' / ')}`;
+    const geos = [...new Set(logicalLinks.flatMap((link) => link.geos))];
+    fragment.querySelector('.affiliate-item-meta').textContent = `${formatLinkCount(logicalLinks.length)} · ${geos.join(' / ')}`;
     const previewUrl = affiliateLogoUrl(item.logo_id);
     previewFallback.textContent = affiliateBrandInitials(item.brand);
     if (previewUrl) {
@@ -1537,13 +1541,19 @@ function renderAffiliateItems() {
     const linksToggle = fragment.querySelector('.affiliate-links-toggle');
     const expanded = state.affiliateExpandedIds.has(item.id);
     linksContainer.id = `btm-affiliate-links-${item.id}`;
-    item.links.forEach((link, index) => {
+    logicalLinks.forEach((link, index) => {
       const summary = document.createElement('div');
       summary.className = 'affiliate-link-summary';
       summary.hidden = index > 0 && !expanded;
-      const badge = document.createElement('span');
-      badge.className = `affiliate-link-badge${link.geo === 'GLOBAL' ? ' is-global' : ''}`;
-      badge.textContent = link.geo;
+      const geoList = document.createElement('span');
+      geoList.className = 'affiliate-link-geos';
+      geoList.setAttribute('aria-label', `GEO: ${link.geos.join(', ')}`);
+      link.geos.forEach((geo) => {
+        const badge = document.createElement('span');
+        badge.className = `affiliate-link-badge${geo === 'GLOBAL' ? ' is-global' : ''}`;
+        badge.textContent = geo;
+        geoList.append(badge);
+      });
       const display = affiliateLinkDisplay(link);
       const copy = document.createElement('span');
       copy.className = 'affiliate-link-copy';
@@ -1557,10 +1567,10 @@ function renderAffiliateItems() {
         parameters.textContent = 'параметры';
         copy.append(parameters);
       }
-      summary.append(badge, copy);
+      summary.append(geoList, copy);
       linksContainer.append(summary);
     });
-    if (item.links.length > 1) {
+    if (logicalLinks.length > 1) {
       linksToggle.hidden = false;
       linksToggle.type = 'button';
       linksToggle.setAttribute('aria-controls', linksContainer.id);
@@ -1568,7 +1578,7 @@ function renderAffiliateItems() {
       const toggleLabel = document.createElement('span');
       toggleLabel.textContent = expanded
         ? 'Свернуть дополнительные ссылки'
-        : `Показать ещё ${formatAdditionalLinkCount(item.links.length - 1)}`;
+        : `Показать ещё ${formatAdditionalLinkCount(logicalLinks.length - 1)}`;
       const toggleIcon = document.createElement('span');
       toggleIcon.className = 'affiliate-links-toggle-icon';
       toggleIcon.setAttribute('aria-hidden', 'true');
