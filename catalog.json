@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 2,
+  "catalog_version": 3,
   "items": [
     {
       "id": "bet-republic-primary",
@@ -9,7 +9,11 @@
       "path": "logos/bet-republic/bet-republic-primary-v1.webp",
       "suggested_filename": "bet-republic.webp",
       "version": 1,
-      "tags": ["bet republic", "primary", "at"]
+      "tags": [
+        "bet republic",
+        "primary",
+        "at"
+      ]
     },
     {
       "id": "ivibet-primary",
@@ -18,7 +22,11 @@
       "path": "logos/ivibet/ivibet-primary-v1.png",
       "suggested_filename": "ivibet.png",
       "version": 1,
-      "tags": ["ivibet", "primary", "at"]
+      "tags": [
+        "ivibet",
+        "primary",
+        "at"
+      ]
     },
     {
       "id": "stone-vegas-primary",
@@ -27,7 +35,11 @@
       "path": "logos/stone-vegas/stone-vegas-primary-v1.png",
       "suggested_filename": "stone-vegas.png",
       "version": 1,
-      "tags": ["stone vegas", "primary", "at"]
+      "tags": [
+        "stone vegas",
+        "primary",
+        "at"
+      ]
     },
     {
       "id": "spinsup-dark",
@@ -36,7 +48,11 @@
       "path": "logos/spinsup/spinsup-dark-v1.jpg",
       "suggested_filename": "spinsup-dark.jpg",
       "version": 1,
-      "tags": ["spinsup", "dark", "at"]
+      "tags": [
+        "spinsup",
+        "dark",
+        "at"
+      ]
     },
     {
       "id": "slotsgem-primary",
@@ -45,7 +61,11 @@
       "path": "logos/slotsgem/slotsgem-primary-v1.jpg",
       "suggested_filename": "slotsgem.jpg",
       "version": 1,
-      "tags": ["slotsgem", "primary", "at"]
+      "tags": [
+        "slotsgem",
+        "primary",
+        "at"
+      ]
     },
     {
       "id": "fortune-play-primary",
@@ -54,7 +74,11 @@
       "path": "logos/fortune-play/fortune-play-primary-v1.jpg",
       "suggested_filename": "fortune-play.jpg",
       "version": 1,
-      "tags": ["fortune play", "primary", "at"]
+      "tags": [
+        "fortune play",
+        "primary",
+        "at"
+      ]
     },
     {
       "id": "rooster-bet-primary",
@@ -63,7 +87,12 @@
       "path": "logos/rooster-bet/rooster-bet-primary-v1.png",
       "suggested_filename": "rooster-bet.png",
       "version": 1,
-      "tags": ["rooster.bet", "rooster", "primary", "at"]
+      "tags": [
+        "rooster.bet",
+        "rooster",
+        "primary",
+        "at"
+      ]
     },
     {
       "id": "miilioner-primary",
@@ -72,7 +101,11 @@
       "path": "logos/miilioner/miilioner-primary-v1.webp",
       "suggested_filename": "miilioner.webp",
       "version": 1,
-      "tags": ["miilioner", "primary", "at"]
+      "tags": [
+        "miilioner",
+        "primary",
+        "at"
+      ]
     },
     {
       "id": "alawin-primary",
@@ -81,7 +114,11 @@
       "path": "logos/alawin/alawin-primary-v1.png",
       "suggested_filename": "alawin.png",
       "version": 1,
-      "tags": ["alawin", "primary", "fi"]
+      "tags": [
+        "alawin",
+        "primary",
+        "fi"
+      ]
     },
     {
       "id": "ninlay-exact-dark",
@@ -90,7 +127,12 @@
       "path": "logos/ninlay/ninlay-exact-dark-v1.jpg",
       "suggested_filename": "ninlay-exact-dark.jpg",
       "version": 1,
-      "tags": ["ninlay", "exact dark", "dark", "fi"]
+      "tags": [
+        "ninlay",
+        "exact dark",
+        "dark",
+        "fi"
+      ]
     },
     {
       "id": "lanista-primary",
@@ -99,7 +141,11 @@
       "path": "logos/lanista/lanista-primary-v1.webp",
       "suggested_filename": "lanista.webp",
       "version": 1,
-      "tags": ["lanista", "primary", "fi"]
+      "tags": [
+        "lanista",
+        "primary",
+        "fi"
+      ]
     },
     {
       "id": "slotuna-primary",
@@ -108,7 +154,11 @@
       "path": "logos/slotuna/slotuna-primary-v1.webp",
       "suggested_filename": "slotuna.webp",
       "version": 1,
-      "tags": ["slotuna", "primary", "fi"]
+      "tags": [
+        "slotuna",
+        "primary",
+        "fi"
+      ]
     },
     {
       "id": "sportuna-primary",
@@ -117,7 +167,251 @@
       "path": "logos/sportuna/sportuna-primary-v1.webp",
       "suggested_filename": "sportuna.webp",
       "version": 1,
-      "tags": ["sportuna", "primary", "fi"]
+      "tags": [
+        "sportuna",
+        "primary",
+        "fi"
+      ]
+    },
+    {
+      "id": "1go-primary",
+      "brand": "1go",
+      "variant": "Primary",
+      "path": "logos/1go/1go-primary-v1.png",
+      "suggested_filename": "1go.png",
+      "version": 1,
+      "tags": [
+        "1go",
+        "primary"
+      ]
+    },
+    {
+      "id": "abuking-primary",
+      "brand": "Abuking",
+      "variant": "Primary",
+      "path": "logos/abuking/abuking-primary-v1.png",
+      "suggested_filename": "abuking.png",
+      "version": 1,
+      "tags": [
+        "abuking",
+        "primary"
+      ]
+    },
+    {
+      "id": "allyspin-primary",
+      "brand": "Allyspin",
+      "variant": "Primary",
+      "path": "logos/allyspin/allyspin-primary-v1.png",
+      "suggested_filename": "allyspin.png",
+      "version": 1,
+      "tags": [
+        "allyspin",
+        "primary"
+      ]
+    },
+    {
+      "id": "betjordan-primary",
+      "brand": "Betjordan",
+      "variant": "Primary",
+      "path": "logos/betjordan/betjordan-primary-v1.png",
+      "suggested_filename": "betjordan.png",
+      "version": 1,
+      "tags": [
+        "betjordan",
+        "primary"
+      ]
+    },
+    {
+      "id": "betobet-primary",
+      "brand": "Betobet",
+      "variant": "Primary",
+      "path": "logos/betobet/betobet-primary-v1.png",
+      "suggested_filename": "betobet.png",
+      "version": 1,
+      "tags": [
+        "betobet",
+        "primary"
+      ]
+    },
+    {
+      "id": "betprimero-primary",
+      "brand": "Betprimero",
+      "variant": "Primary",
+      "path": "logos/betprimero/betprimero-primary-v1.jpg",
+      "suggested_filename": "betprimero.jpg",
+      "version": 1,
+      "tags": [
+        "betprimero",
+        "primary"
+      ]
+    },
+    {
+      "id": "betsio-primary",
+      "brand": "Betsio",
+      "variant": "Primary",
+      "path": "logos/betsio/betsio-primary-v1.jpg",
+      "suggested_filename": "betsio.jpg",
+      "version": 1,
+      "tags": [
+        "betsio",
+        "primary"
+      ]
+    },
+    {
+      "id": "billybets-primary",
+      "brand": "Billybets",
+      "variant": "Primary",
+      "path": "logos/billybets/billybets-primary-v1.png",
+      "suggested_filename": "billybets.png",
+      "version": 1,
+      "tags": [
+        "billybets",
+        "primary"
+      ]
+    },
+    {
+      "id": "bravoplay-primary",
+      "brand": "Bravoplay",
+      "variant": "Primary",
+      "path": "logos/bravoplay/bravoplay-primary-v1.png",
+      "suggested_filename": "bravoplay.png",
+      "version": 1,
+      "tags": [
+        "bravoplay",
+        "primary"
+      ]
+    },
+    {
+      "id": "casea-primary",
+      "brand": "Casea",
+      "variant": "Primary",
+      "path": "logos/casea/casea-primary-v1.png",
+      "suggested_filename": "casea.png",
+      "version": 1,
+      "tags": [
+        "casea",
+        "primary"
+      ]
+    },
+    {
+      "id": "cashwin-primary",
+      "brand": "Cashwin",
+      "variant": "Primary",
+      "path": "logos/cashwin/cashwin-primary-v1.png",
+      "suggested_filename": "cashwin.png",
+      "version": 1,
+      "tags": [
+        "cashwin",
+        "primary"
+      ]
+    },
+    {
+      "id": "casiny-primary",
+      "brand": "Casiny",
+      "variant": "Primary",
+      "path": "logos/casiny/casiny-primary-v1.png",
+      "suggested_filename": "casiny.png",
+      "version": 1,
+      "tags": [
+        "casiny",
+        "primary"
+      ]
+    },
+    {
+      "id": "cazeus-primary",
+      "brand": "Cazeus",
+      "variant": "Primary",
+      "path": "logos/cazeus/cazeus-primary-v1.png",
+      "suggested_filename": "cazeus.png",
+      "version": 1,
+      "tags": [
+        "cazeus",
+        "primary"
+      ]
+    },
+    {
+      "id": "davincigold-primary",
+      "brand": "Davincigold",
+      "variant": "Primary",
+      "path": "logos/davincigold/davincigold-primary-v1.jpg",
+      "suggested_filename": "davincigold.jpg",
+      "version": 1,
+      "tags": [
+        "davincigold",
+        "primary"
+      ]
+    },
+    {
+      "id": "dragonslots-primary",
+      "brand": "Dragonslots",
+      "variant": "Primary",
+      "path": "logos/dragonslots/dragonslots-primary-v1.png",
+      "suggested_filename": "dragonslots.png",
+      "version": 1,
+      "tags": [
+        "dragonslots",
+        "primary"
+      ]
+    },
+    {
+      "id": "fortune-play-at-primary",
+      "brand": "Fortune Play At",
+      "variant": "Primary",
+      "path": "logos/fortune-play-at/fortune-play-at-primary-v1.jpg",
+      "suggested_filename": "fortune-play-at.jpg",
+      "version": 1,
+      "tags": [
+        "fortune play at",
+        "primary"
+      ]
+    },
+    {
+      "id": "fortune-play-nz-primary",
+      "brand": "Fortune Play Nz",
+      "variant": "Primary",
+      "path": "logos/fortune-play-nz/fortune-play-nz-primary-v1.png",
+      "suggested_filename": "fortune-play-nz.png",
+      "version": 1,
+      "tags": [
+        "fortune play nz",
+        "primary"
+      ]
+    },
+    {
+      "id": "fresh-primary",
+      "brand": "Fresh",
+      "variant": "Primary",
+      "path": "logos/fresh/fresh-primary-v1.png",
+      "suggested_filename": "fresh.png",
+      "version": 1,
+      "tags": [
+        "fresh",
+        "primary"
+      ]
+    },
+    {
+      "id": "golden-reels-primary",
+      "brand": "Golden Reels",
+      "variant": "Primary",
+      "path": "logos/golden-reels/golden-reels-primary-v1.png",
+      "suggested_filename": "golden-reels.png",
+      "version": 1,
+      "tags": [
+        "golden reels",
+        "primary"
+      ]
+    },
+    {
+      "id": "goldspin-primary",
+      "brand": "Goldspin",
+      "variant": "Primary",
+      "path": "logos/goldspin/goldspin-primary-v1.png",
+      "suggested_filename": "goldspin.png",
+      "version": 1,
+      "tags": [
+        "goldspin",
+        "primary"
+      ]
     }
   ]
 }
