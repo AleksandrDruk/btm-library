@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 4,
+  "catalog_version": 5,
   "items": [
     {
       "id": "bet-republic-primary",
@@ -478,6 +478,186 @@
       "suggested_filename": "rollero.jpg",
       "version": 1,
       "tags": ["rollero", "rollero casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "rooster-bet-nz-export",
+      "brand": "Rooster.bet",
+      "variant": "NZ Export",
+      "path": "logos/rooster-bet/rooster-bet-nz-export-v1.png",
+      "suggested_filename": "rooster-bet-nz-export.png",
+      "version": 1,
+      "tags": ["rooster.bet", "nz export", "nz", "export"]
+    },
+    {
+      "id": "royal-game-primary",
+      "brand": "Royal Game",
+      "variant": "Primary",
+      "path": "logos/royal-game/royal-game-primary-v1.png",
+      "suggested_filename": "royal-game.png",
+      "version": 1,
+      "tags": ["royal game", "royalgame casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "ruby-reels-primary",
+      "brand": "Ruby Reels",
+      "variant": "Primary",
+      "path": "logos/ruby-reels/ruby-reels-primary-v1.png",
+      "suggested_filename": "ruby-reels.png",
+      "version": 1,
+      "tags": ["ruby reels", "ruby reels casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "slota-primary",
+      "brand": "Slota",
+      "variant": "Primary",
+      "path": "logos/slota/slota-primary-v1.jpg",
+      "suggested_filename": "slota.jpg",
+      "version": 1,
+      "tags": ["slota", "primary", "nz", "export"]
+    },
+    {
+      "id": "slot-lounge-primary",
+      "brand": "Slot Lounge",
+      "variant": "Primary",
+      "path": "logos/slot-lounge/slot-lounge-primary-v1.jpg",
+      "suggested_filename": "slot-lounge.jpg",
+      "version": 1,
+      "tags": ["slot lounge", "primary", "nz", "nz2", "export"]
+    },
+    {
+      "id": "slotsgem-nz-light",
+      "brand": "Slotsgem",
+      "variant": "NZ Light",
+      "path": "logos/slotsgem/slotsgem-nz-light-v1.png",
+      "suggested_filename": "slotsgem-nz-light.png",
+      "version": 1,
+      "tags": ["slotsgem", "slotsgem casino", "nz light", "nz", "export"]
+    },
+    {
+      "id": "spinbet-primary",
+      "brand": "Spinbet",
+      "variant": "Primary",
+      "path": "logos/spinbet/spinbet-primary-v1.png",
+      "suggested_filename": "spinbet.png",
+      "version": 1,
+      "tags": ["spinbet", "primary", "nz", "export"]
+    },
+    {
+      "id": "spincity-square-dark",
+      "brand": "SpinCity",
+      "variant": "Square Dark",
+      "path": "logos/spincity/spincity-square-dark-v1.png",
+      "suggested_filename": "spincity-square-dark.png",
+      "version": 1,
+      "tags": ["spincity", "spincity casino", "square dark", "nz", "nz2", "export"]
+    },
+    {
+      "id": "spincity-transparent",
+      "brand": "SpinCity",
+      "variant": "Transparent",
+      "path": "logos/spincity/spincity-transparent-v1.webp",
+      "suggested_filename": "spincity-transparent.webp",
+      "version": 1,
+      "tags": ["spincity", "spincity casino", "transparent", "nz", "export"]
+    },
+    {
+      "id": "spinjo-primary",
+      "brand": "Spinjo",
+      "variant": "Primary",
+      "path": "logos/spinjo/spinjo-primary-v1.jpg",
+      "suggested_filename": "spinjo.jpg",
+      "version": 1,
+      "tags": ["spinjo", "primary", "nz", "export"]
+    },
+    {
+      "id": "spinlander-primary",
+      "brand": "Spinlander",
+      "variant": "Primary",
+      "path": "logos/spinlander/spinlander-primary-v1.jpg",
+      "suggested_filename": "spinlander.jpg",
+      "version": 1,
+      "tags": ["spinlander", "primary", "nz", "export"]
+    },
+    {
+      "id": "spin-samurai-primary",
+      "brand": "Spin Samurai",
+      "variant": "Primary",
+      "path": "logos/spin-samurai/spin-samurai-primary-v1.webp",
+      "suggested_filename": "spin-samurai.webp",
+      "version": 1,
+      "tags": ["spin samurai", "spin samurai casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "spinsup-nz-light",
+      "brand": "Spinsup",
+      "variant": "NZ Light",
+      "path": "logos/spinsup/spinsup-nz-light-v1.jpg",
+      "suggested_filename": "spinsup-nz-light.jpg",
+      "version": 1,
+      "tags": ["spinsup", "spinsup casino", "nz light", "nz", "export"]
+    },
+    {
+      "id": "spinsup-at-pink",
+      "brand": "Spinsup",
+      "variant": "AT Pink",
+      "path": "logos/spinsup/spinsup-at-pink-v1.webp",
+      "suggested_filename": "spinsup-at-pink.webp",
+      "version": 1,
+      "tags": ["spinsup", "at pink", "at", "export"]
+    },
+    {
+      "id": "stone-vegas-at-export",
+      "brand": "Stone Vegas",
+      "variant": "AT Export",
+      "path": "logos/stone-vegas/stone-vegas-at-export-v1.jpg",
+      "suggested_filename": "stone-vegas-at-export.jpg",
+      "version": 1,
+      "tags": ["stone vegas", "stonevegas", "at export", "at", "export"]
+    },
+    {
+      "id": "the-clubhouse-dark",
+      "brand": "The Clubhouse",
+      "variant": "Dark",
+      "path": "logos/the-clubhouse/the-clubhouse-dark-v1.jpg",
+      "suggested_filename": "the-clubhouse-dark.jpg",
+      "version": 1,
+      "tags": ["the clubhouse", "the clubhouse casino", "dark", "nz", "export"]
+    },
+    {
+      "id": "the-clubhouse-light-horizontal",
+      "brand": "The Clubhouse",
+      "variant": "Light Horizontal",
+      "path": "logos/the-clubhouse/the-clubhouse-light-horizontal-v1.png",
+      "suggested_filename": "the-clubhouse-light-horizontal.png",
+      "version": 1,
+      "tags": ["the clubhouse", "the clubhouse casino", "light horizontal", "nz", "export"]
+    },
+    {
+      "id": "tikitaka-primary",
+      "brand": "Tikitaka",
+      "variant": "Primary",
+      "path": "logos/tikitaka/tikitaka-primary-v1.png",
+      "suggested_filename": "tikitaka.png",
+      "version": 1,
+      "tags": ["tikitaka", "tikitaka casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "trip2vip-primary",
+      "brand": "Trip2Vip",
+      "variant": "Primary",
+      "path": "logos/trip2vip/trip2vip-primary-v1.png",
+      "suggested_filename": "trip2vip.png",
+      "version": 1,
+      "tags": ["trip2vip", "primary", "nz", "export"]
+    },
+    {
+      "id": "trips-primary",
+      "brand": "Trips",
+      "variant": "Primary",
+      "path": "logos/trips/trips-primary-v1.webp",
+      "suggested_filename": "trips.webp",
+      "version": 1,
+      "tags": ["trips", "trips casino", "primary", "nz", "export"]
     }
   ]
 }
