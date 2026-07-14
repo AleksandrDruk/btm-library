@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 2,
+  "catalog_version": 3,
   "items": [
     {
       "id": "bet-republic-primary",
@@ -118,6 +118,186 @@
       "suggested_filename": "sportuna.webp",
       "version": 1,
       "tags": ["sportuna", "primary", "fi"]
+    },
+    {
+      "id": "1go-primary",
+      "brand": "1GO",
+      "variant": "Primary",
+      "path": "logos/1go/1go-primary-v1.png",
+      "suggested_filename": "1go.png",
+      "version": 1,
+      "tags": ["1go", "primary", "nz", "export"]
+    },
+    {
+      "id": "abuking-primary",
+      "brand": "AbuKing",
+      "variant": "Primary",
+      "path": "logos/abuking/abuking-primary-v1.png",
+      "suggested_filename": "abuking.png",
+      "version": 1,
+      "tags": ["abuking", "primary", "nz", "export"]
+    },
+    {
+      "id": "allyspin-primary",
+      "brand": "AllySpin",
+      "variant": "Primary",
+      "path": "logos/allyspin/allyspin-primary-v1.png",
+      "suggested_filename": "allyspin.png",
+      "version": 1,
+      "tags": ["allyspin", "allyspin casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "betjordan-primary",
+      "brand": "BetJordan",
+      "variant": "Primary",
+      "path": "logos/betjordan/betjordan-primary-v1.png",
+      "suggested_filename": "betjordan.png",
+      "version": 1,
+      "tags": ["betjordan", "betjordan casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "betobet-primary",
+      "brand": "Betobet",
+      "variant": "Primary",
+      "path": "logos/betobet/betobet-primary-v1.png",
+      "suggested_filename": "betobet.png",
+      "version": 1,
+      "tags": ["betobet", "primary", "nz", "export"]
+    },
+    {
+      "id": "betprimero-primary",
+      "brand": "Betprimero",
+      "variant": "Primary",
+      "path": "logos/betprimero/betprimero-primary-v1.jpg",
+      "suggested_filename": "betprimero.jpg",
+      "version": 1,
+      "tags": ["betprimero", "primary", "nz", "export"]
+    },
+    {
+      "id": "betsio-primary",
+      "brand": "Betsio",
+      "variant": "Primary",
+      "path": "logos/betsio/betsio-primary-v1.jpg",
+      "suggested_filename": "betsio.jpg",
+      "version": 1,
+      "tags": ["betsio", "primary", "nz", "export"]
+    },
+    {
+      "id": "billybets-primary",
+      "brand": "BillyBets",
+      "variant": "Primary",
+      "path": "logos/billybets/billybets-primary-v1.png",
+      "suggested_filename": "billybets.png",
+      "version": 1,
+      "tags": ["billybets", "primary", "nz", "export"]
+    },
+    {
+      "id": "bravoplay-primary",
+      "brand": "Bravoplay",
+      "variant": "Primary",
+      "path": "logos/bravoplay/bravoplay-primary-v1.png",
+      "suggested_filename": "bravoplay.png",
+      "version": 1,
+      "tags": ["bravoplay", "primary", "nz", "export"]
+    },
+    {
+      "id": "casea-primary",
+      "brand": "Casea",
+      "variant": "Primary",
+      "path": "logos/casea/casea-primary-v1.png",
+      "suggested_filename": "casea.png",
+      "version": 1,
+      "tags": ["casea", "primary", "nz", "export"]
+    },
+    {
+      "id": "cashwin-primary",
+      "brand": "CashWin",
+      "variant": "Primary",
+      "path": "logos/cashwin/cashwin-primary-v1.png",
+      "suggested_filename": "cashwin.png",
+      "version": 1,
+      "tags": ["cashwin", "cashwin casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "casiny-primary",
+      "brand": "Casiny",
+      "variant": "Primary",
+      "path": "logos/casiny/casiny-primary-v1.png",
+      "suggested_filename": "casiny.png",
+      "version": 1,
+      "tags": ["casiny", "primary", "nz", "export"]
+    },
+    {
+      "id": "cazeus-primary",
+      "brand": "Cazeus",
+      "variant": "Primary",
+      "path": "logos/cazeus/cazeus-primary-v1.png",
+      "suggested_filename": "cazeus.png",
+      "version": 1,
+      "tags": ["cazeus", "cazeus casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "davincigold-primary",
+      "brand": "DavinciGold",
+      "variant": "Primary",
+      "path": "logos/davincigold/davincigold-primary-v1.jpg",
+      "suggested_filename": "davincigold.jpg",
+      "version": 1,
+      "tags": ["davincigold", "primary", "nz", "export"]
+    },
+    {
+      "id": "dragonslots-primary",
+      "brand": "DragonSlots",
+      "variant": "Primary",
+      "path": "logos/dragonslots/dragonslots-primary-v1.png",
+      "suggested_filename": "dragonslots.png",
+      "version": 1,
+      "tags": ["dragonslots", "primary", "nz", "nz2", "export"]
+    },
+    {
+      "id": "fortune-play-nz-dark",
+      "brand": "Fortune Play",
+      "variant": "NZ Dark",
+      "path": "logos/fortune-play/fortune-play-nz-dark-v1.png",
+      "suggested_filename": "fortune-play-nz-dark.png",
+      "version": 1,
+      "tags": ["fortune play", "fortune play casino", "nz dark", "nz", "export"]
+    },
+    {
+      "id": "fresh-primary",
+      "brand": "Fresh",
+      "variant": "Primary",
+      "path": "logos/fresh/fresh-primary-v1.png",
+      "suggested_filename": "fresh.png",
+      "version": 1,
+      "tags": ["fresh", "fresh casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "golden-reels-primary",
+      "brand": "Golden Reels",
+      "variant": "Primary",
+      "path": "logos/golden-reels/golden-reels-primary-v1.png",
+      "suggested_filename": "golden-reels.png",
+      "version": 1,
+      "tags": ["golden reels", "primary", "nz", "export"]
+    },
+    {
+      "id": "goldspin-primary",
+      "brand": "GoldSpin",
+      "variant": "Primary",
+      "path": "logos/goldspin/goldspin-primary-v1.png",
+      "suggested_filename": "goldspin.png",
+      "version": 1,
+      "tags": ["goldspin", "goldspin casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "gransino-primary",
+      "brand": "Gransino",
+      "variant": "Primary",
+      "path": "logos/gransino/gransino-primary-v1.jpg",
+      "suggested_filename": "gransino.jpg",
+      "version": 1,
+      "tags": ["gransino", "primary", "nz", "export"]
     }
   ]
 }
