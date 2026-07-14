@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 3,
+  "catalog_version": 4,
   "items": [
     {
       "id": "bet-republic-primary",
@@ -298,6 +298,186 @@
       "suggested_filename": "gransino.jpg",
       "version": 1,
       "tags": ["gransino", "primary", "nz", "export"]
+    },
+    {
+      "id": "ivibet-at-export",
+      "brand": "Ivibet",
+      "variant": "AT Export",
+      "path": "logos/ivibet/ivibet-at-export-v1.png",
+      "suggested_filename": "ivibet-at-export.png",
+      "version": 1,
+      "tags": ["ivibet", "at export", "at", "export"]
+    },
+    {
+      "id": "jet-primary",
+      "brand": "Jet",
+      "variant": "Primary",
+      "path": "logos/jet/jet-primary-v1.jpg",
+      "suggested_filename": "jet.jpg",
+      "version": 1,
+      "tags": ["jet", "jet casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "karamba-primary",
+      "brand": "Karamba",
+      "variant": "Primary",
+      "path": "logos/karamba/karamba-primary-v1.png",
+      "suggested_filename": "karamba.png",
+      "version": 1,
+      "tags": ["karamba", "primary", "nz", "export"]
+    },
+    {
+      "id": "kingdom-primary",
+      "brand": "Kingdom",
+      "variant": "Primary",
+      "path": "logos/kingdom/kingdom-primary-v1.png",
+      "suggested_filename": "kingdom.png",
+      "version": 1,
+      "tags": ["kingdom", "kingdom casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "lucky7even-primary",
+      "brand": "Lucky7even",
+      "variant": "Primary",
+      "path": "logos/lucky7even/lucky7even-primary-v1.png",
+      "suggested_filename": "lucky7even.png",
+      "version": 1,
+      "tags": ["lucky7even", "primary", "nz", "export"]
+    },
+    {
+      "id": "luckyvibe-primary",
+      "brand": "LuckyVibe",
+      "variant": "Primary",
+      "path": "logos/luckyvibe/luckyvibe-primary-v1.png",
+      "suggested_filename": "luckyvibe.png",
+      "version": 1,
+      "tags": ["luckyvibe", "primary", "nz", "export"]
+    },
+    {
+      "id": "magius-primary",
+      "brand": "Magius",
+      "variant": "Primary",
+      "path": "logos/magius/magius-primary-v1.png",
+      "suggested_filename": "magius.png",
+      "version": 1,
+      "tags": ["magius", "primary", "nz", "export"]
+    },
+    {
+      "id": "miilioner-at-export",
+      "brand": "Miilioner",
+      "variant": "AT Export",
+      "path": "logos/miilioner/miilioner-at-export-v1.jpg",
+      "suggested_filename": "miilioner-at-export.jpg",
+      "version": 1,
+      "tags": ["miilioner", "millioner", "at export", "at", "export"]
+    },
+    {
+      "id": "monster-win-primary",
+      "brand": "Monster Win",
+      "variant": "Primary",
+      "path": "logos/monster-win/monster-win-primary-v1.png",
+      "suggested_filename": "monster-win.png",
+      "version": 1,
+      "tags": ["monster win", "primary", "nz", "export"]
+    },
+    {
+      "id": "mrpunter-primary",
+      "brand": "MRPunter",
+      "variant": "Primary",
+      "path": "logos/mrpunter/mrpunter-primary-v1.png",
+      "suggested_filename": "mrpunter.png",
+      "version": 1,
+      "tags": ["mrpunter", "primary", "nz", "export"]
+    },
+    {
+      "id": "n1bet-primary",
+      "brand": "N1Bet",
+      "variant": "Primary",
+      "path": "logos/n1bet/n1bet-primary-v1.png",
+      "suggested_filename": "n1bet.png",
+      "version": 1,
+      "tags": ["n1bet", "primary", "nz", "export"]
+    },
+    {
+      "id": "olympia-primary",
+      "brand": "Olympia",
+      "variant": "Primary",
+      "path": "logos/olympia/olympia-primary-v1.png",
+      "suggested_filename": "olympia.png",
+      "version": 1,
+      "tags": ["olympia", "primary", "nz", "export"]
+    },
+    {
+      "id": "playmojo-primary",
+      "brand": "Playmojo",
+      "variant": "Primary",
+      "path": "logos/playmojo/playmojo-primary-v1.jpg",
+      "suggested_filename": "playmojo.jpg",
+      "version": 1,
+      "tags": ["playmojo", "primary", "nz", "export"]
+    },
+    {
+      "id": "purecasino-primary",
+      "brand": "PureCasino",
+      "variant": "Primary",
+      "path": "logos/purecasino/purecasino-primary-v1.png",
+      "suggested_filename": "purecasino.png",
+      "version": 1,
+      "tags": ["purecasino", "primary", "nz", "export"]
+    },
+    {
+      "id": "quickwin-primary",
+      "brand": "QuickWin",
+      "variant": "Primary",
+      "path": "logos/quickwin/quickwin-primary-v1.png",
+      "suggested_filename": "quickwin.png",
+      "version": 1,
+      "tags": ["quickwin", "primary", "nz", "export"]
+    },
+    {
+      "id": "richard-primary",
+      "brand": "Richard",
+      "variant": "Primary",
+      "path": "logos/richard/richard-primary-v1.jpg",
+      "suggested_filename": "richard.jpg",
+      "version": 1,
+      "tags": ["richard", "richard casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "rioace-primary",
+      "brand": "RioAce",
+      "variant": "Primary",
+      "path": "logos/rioace/rioace-primary-v1.jpg",
+      "suggested_filename": "rioace.jpg",
+      "version": 1,
+      "tags": ["rioace", "rioace casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "rocketplay-primary",
+      "brand": "RocketPlay",
+      "variant": "Primary",
+      "path": "logos/rocketplay/rocketplay-primary-v1.webp",
+      "suggested_filename": "rocketplay.webp",
+      "version": 1,
+      "tags": ["rocketplay", "rocketplay casino", "primary", "nz", "export"]
+    },
+    {
+      "id": "rocketspin-primary",
+      "brand": "Rocketspin",
+      "variant": "Primary",
+      "path": "logos/rocketspin/rocketspin-primary-v1.jpg",
+      "suggested_filename": "rocketspin.jpg",
+      "version": 1,
+      "tags": ["rocketspin", "primary", "nz", "export"]
+    },
+    {
+      "id": "rollero-primary",
+      "brand": "Rollero",
+      "variant": "Primary",
+      "path": "logos/rollero/rollero-primary-v1.jpg",
+      "suggested_filename": "rollero.jpg",
+      "version": 1,
+      "tags": ["rollero", "rollero casino", "primary", "nz", "export"]
     }
   ]
 }

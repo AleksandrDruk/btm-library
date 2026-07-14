@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": 3,
+  "catalog_version": 4,
   "items": [
     {
       "path": "logos/bet-republic/bet-republic-primary-v1.webp",
@@ -297,6 +297,186 @@
         "version": 1,
         "aspect_ratio": 1,
         "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEQEREREQAAAAAAAAAAAAAAAAAAERMyRDVEQzQzVERDMyERAAAAAAAAAAAAQzMyVEVDRDRDVERDVUQzAAAAAAAAAAAAMiVDMyMyMyIhVDMyVDMyAAAAAAAAAAAAEAERMyMyIhIhQyMyERERAAAAAAAAAAAAAAAAAAEQEREREQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "path": "logos/ivibet/ivibet-at-export-v1.png",
+      "sha256": "248e71723b594d6c1b10561faa2d0e22e64f1d295621dca32e40f313867aacb0",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3dm7aZiZzM3d3dzM3d3d3d3d3d3d3d3d3daZeZqqmZmZiZZ3iJiZmZma3d3d3d3d3dm6eZmqq7maqrmZiZmZqqq73d3d3d3d3d3dzM3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d"
+      }
+    },
+    {
+      "path": "logos/jet/jet-primary-v1.jpg",
+      "sha256": "5d1204c6cef26eb37b0c9933337ef887f355f56e40c0103a063bf7ce659390f4",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////zM3dvMvMvM3dvMvMvMzd//////////3dRWiZRWRWVnmqRWRWVnqr//////////qrRWd4RWZ4iZ3umaRWzd7u//////q7mqeJZ4Z4VniZq77/eJZ4//////////mqRWZ4zNVnRWRWqr7vVnu8////////7u3u7u3u7u3d3u3u3u3u3u3d7v//////vM7u7uq77vu87u7uu7u83d3e3u//////3e7u7u7u7v3d////7u7u7u3d//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/karamba/karamba-primary-v1.png",
+      "sha256": "8fc3b45d43f18c5d5daccff407f9a6a6f15d17857bf2b0199533b1be3866bb49",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "ADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADATATATAkATAkATATATAUAUAUAkATAUATFXGZA1GaFnGJFXF4BFGJGJGJF4FWGJA1FWFoFoFoGIFnFnGJF4GJF4GJGJF4GIFWADADADADADADADADADATADATATATADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADAD"
+      }
+    },
+    {
+      "path": "logos/kingdom/kingdom-primary-v1.png",
+      "sha256": "ddd6446694c9ffa1d9c5281989ef2cfbb0dba88ecb1d2947b018c99f4f001fe5",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7u7u7u7u//////////////////7u7u7uu6iIiImY3d3d3d3d3d3d7u3dqqu7mZzLqqiIVEdlqpmYmZZmd3iIqqiIiIu6VmzLqqiIVVeHmYmYmZREZmVVmYZVd2mZmZq6qqd2iImYmIqpqpiHmYiImYmYiImZd2uq3d3MzMu7zM3c3d3d3d3d7uzM3c3dzM3d////////7u/u7t7d7u7d7t7u////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/lucky7even/lucky7even-primary-v1.png",
+      "sha256": "09b308ed83a532fcbf5a0987a0c9fab7485f15e23c631237c5884b8424e7c523",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERIREAAAAAAAAAAAAAAAAAAAAAABEBERIhMREAAAAAAAAAAAAAABEUABECMVMUQUQiMhEAAAAAAAAAAAAAATEUEXIWMWQmQVIREAAAAAAAAAAAAAAAACATACACABISEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "path": "logos/luckyvibe/luckyvibe-primary-v1.png",
+      "sha256": "76cf185ccd4bccefe7921643f4b93499009b5502a11fcccc0118b4f7356dcf4c",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIiIzI0ERAAAAAAAAAAAAAAAAAAAAAAIiVWJHESESESAAAAAAAAAAAAAAAAAAERRENEE4FHeIZmERAAAAAAAAAAAAAAAAIiZmVmJYJZu7u7ERAAAAAAAAAAAAAAAAIid3mqd3ZnREIjARAAAAAAAAAAAAAAIid3VVmZiIV5E0FXE0ARAAAAAAAAAAAAVViIiImZmZJFFXFpFpEkAAAAAAAAAAAAIiREIiERMzESASASARABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "path": "logos/magius/magius-primary-v1.png",
+      "sha256": "1b4448b2a1dfa869c16ca0a8ee49cf52638bc0d318021d8c49e723da44e1b176",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMiVEMiEAAAAAAAAAAAAAIQdAYhcxYRUSlVx2g0UhURYRdAZAEQEQYhtytxyBpRtxpRthlRphlBphyBphUhUwphtxtxtxpRtxphtxlBpRpRphphtxcxQxpxhBYRYhYRgigyghgScSchcxlhlRMQAAIQEAEAEAEAEBIBIBIBEBAAEAIQIQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "path": "logos/miilioner/miilioner-at-export-v1.jpg",
+      "sha256": "a2cf63071c2dedf628f97aedf26d584aee60c563a46df4479c46cc88182bd2f3",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "IzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzREZmiHd3iHVld3aIZ2eHZ2iHd2RUIzIzNEd2dlVUZlRUZlVlVVZlZlVld1NEIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIzIz"
+      }
+    },
+    {
+      "path": "logos/monster-win/monster-win-primary-v1.png",
+      "sha256": "6a852a268901d0644425cbfcef7c4a757b8ac6655b42c476dce93592a665abe2",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "ARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARERIhIhIhIhIhIhIhIhIhIhIhIhERARARERMhIhMhMhMhMhMhMhMhMhIhMhERARARMyqVVDIhh1qFqEl0IimFVTVDqFQyARARMyynqWVTynuWl0uVMyumdkZkymIhARARMyynynyn23qWZTuVZTymmFl1qWERARARMyyll0uVqEqEZSuEl0yVuUqEmEERARARMyuUZShzhzlzMxqDuUqDuUuUdSARARARMxuDQyIhdjlzIhpyuCdiuDuDVCARARARMxqDMxERdjhiIhlypxVBpzpyMxARARARIhZBMhERVCVBERVBdRMhZBdRIhARARARERIhIhIhIhIhIhIhMhMhIhIhIRARARARERIhIhIhIhIhIhIhIhIhIhIhIhERARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARARAR"
+      }
+    },
+    {
+      "path": "logos/mrpunter/mrpunter-primary-v1.png",
+      "sha256": "c4baf5874e7dcac8a093489ed0c64e8d1142553372dc0be43c8ff81ba7174227",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiMzZmVVZmREmZqqqqqqqqiIREIiIiIiIimZ7u3d3dVV3d//////////3dVVIiIiIizM3d7uqqRE3d////////////qqIiIiIiu77u7u3dVV3d////qqmZ////u7MzIiIiiIqqqqqqVV3d////3dzM////u7IiIiIiu7////3dVV3d//////////7ud3IiIiIiREu77uZmRE3d////7u3du7d3IiIiIiIid37u7uiIRE3d////qqIiIiIiIiIiIiIiu73d3d3dVVzM3d3dmZIiIiIiIiIiIiIiREREREREIiREREREMzIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIi"
+      }
+    },
+    {
+      "path": "logos/n1bet/n1bet-primary-v1.png",
+      "sha256": "6adf16a05ec22d0021a6e717dbb3e56dc473392d5ccc2357b241ebf19d01c447",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABEBEBEBEBERERERERABABABABABABABEBQQgQcQMRRERFREMzABABABABABABABEBQQgQkQQhZmZnMzIiABABABABABABABABEBEBEBERERERERABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      }
+    },
+    {
+      "path": "logos/olympia/olympia-primary-v1.png",
+      "sha256": "7f5de446d67b8bb142fa9868dab05d072012d02c10227efce04a99c56b83eed4",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////zK7t7tzKzLzKy67ty5zK3c/u7tzK////3aym3LzKuoy5y6unumunun3cym3K////7tuFupy5y6zL3czLy6zL3LupuV7t//////3Luo7u////////////7uuX3L////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/playmojo/playmojo-primary-v1.jpg",
+      "sha256": "c5db79f929856566debfbadf6e3f2c77303ba5022a0c2b53a91658cd8551a8de",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "////////////////////////////////////////////////7u//////////////////////////zMmZ3d////////////////////////3diIqq//7u7u////////////////////mZd3u7zMqqqqzM//////////////////qqiIqqqqd3u7qq//////////////////7uqqmZd3qqqqu7//////////////////3du7u7zMqq3dzM////////////////m7aJu7zMzMq7e7m8////////////////rNWrVViIqqOKG9rN////////////rMaririZ3deIarKJOa3uvM7///////7/i8WrSrWae8aqSaOsObarSam8////////vNiZeqWaSaSraZWJSJSaWJm7//////////7///7ui7mrzM7uzMir7u////////////////////7/////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/purecasino/purecasino-primary-v1.png",
+      "sha256": "dcbe34aba3c251f61785f8b0d79068c6e63ce673125fbe106da51054c8f2072d",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERVVMzMzREREIiEiARAyAyAyAyAyAiAhMzIiREREREREIiEiAyAyAyAyAyAyAiAhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "path": "logos/quickwin/quickwin-primary-v1.png",
+      "sha256": "f2e210cc49a65e4e13000568b059f14e09319945230c7a492a7c073478718c9d",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////u7M/d/u/d/d7M/d/d3d3d3d3d3dzM3d6q6q6I676Z6I6q6Z6ImId3iIiIiIZmmZ/d6767677M7M677M7dy7u7zMzMzMqqzM////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/richard/richard-primary-v1.jpg",
+      "sha256": "f16932fc5414d0782eef57b1c939cf759cb73e3847dc94e035f0a413e32d6b9a",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "BDBDBDBDAzAzAyAyAyAyAyAyAyAyAyAyBDAzAzAzAyAyEyNTNTEyAyAyAyAyAyAyAzAzAyAyAyAyNTZkZ0NTAyAyAyAyAyAiAyAyAyAyAyJDd0mVqmd1EyAyAiAiAiAiAyAyAyAyAyZkumd1y3qWRTAyAiAiAiAiAyAyAyAyEyiFmViFmWqVd0EyAiAiAiAiAyAyAyAyAyVkZ0d0NTVTZjEyAiAiAiAiAyAyAyAyAiEyVkuVZjEyIyAiAiAiAhAhAyAyAiAyAyAiEyVTRCEiAiAiAiAhAhAhAiAiEyVSdjRTNDZkNDNDNDNDRTEiAhAhAiAiEyVTh0d0Zkd1eFiFd0d0VTEiAhAhAiAiAiEyRTNDNDNDNDNDIyIyEyAhAhAhAiAiAiEyNDNDRTRTNDNCNCMyEhAhAhAhAiAhAhAiEyEyEyEyEyEiEhEhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAhAh"
+      }
+    },
+    {
+      "path": "logos/rioace/rioace-primary-v1.jpg",
+      "sha256": "349dd2bc18cb34c55cbe3056901019bbd3e291de135753aa6e205ed36882ff68",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7u7u//7v7u7u////7u//7u7u7u7u//7uZnVWmZiJVmRFqq7uVWzMZmZnVWZn7v7uM0M0RFVWM0VWRFiJIjIjZn3dM0iJ7u7uNEZnVmVWVWd4VWM0RFETM0VVIjVW7u//3d7uqrzM3diIq7qr7u7u7u7u7u7u//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/rocketplay/rocketplay-primary-v1.webp",
+      "sha256": "f3c0b62ff29a91a92ad0f11f116daf768aba473575298bce26f45e79522bc626",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////+/+///////////////////////////9/o/r//3du7u7u8u8u7u7u77u/////+/r/p/p/93dmZmaqqqqmqqru7///////9/W/p/o/6zMmZ3dqrqq3d///////////+/r/r/7/93d3du7u7zM7u///////////////+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////"
+      }
+    },
+    {
+      "path": "logos/rocketspin/rocketspin-primary-v1.jpg",
+      "sha256": "0666326a146778b4bd9b0d960ec014ada1c6aee244f382fa652c8363b364ed19",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 1,
+        "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEiNENEEiAAAAAAAAAAAAAAAAAAAAAAAANEZmZmREAAAAAAAAAAAAAAAAAAAAAAAAZ4VmVWZ4ERAAAAAAAAAAAAAAAAAAAAABeIibibeIERAAAAAAAAAAAAAAAAERRFaJiresesireJRFERAAAAAAAAAAIiVVaIV5R4RWRWR5V5aJRWEiAAAAAAAAMzd3ZmZmZmd3VmV4SKR5SKJFABAAAAAAIiREREREREREMzJFJGJFJFEjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "path": "logos/rollero/rollero-primary-v1.jpg",
+      "sha256": "98632136a68d6f2d909ab1680ad86b539e6527a393d42fdd062f78c24909f4fa",
+      "fingerprint": {
+        "version": 1,
+        "aspect_ratio": 0.995902,
+        "data": "//////////////////////////////////////////////////////////////////////////////////////////////////////////////3K3K////////////////////////////7b7b///////////////////////////u3J7a7t////////////////////////7a7H7s/+////////////////////////7r7a7a/+////////////////////////7r7a7r/u//////////////////////7t7a7I7s/+/+///////////////+//7u7b7b7a7t7t7t/+///////////+7b7s7s7s7s7s7t7b7t7b7s7s/+/////u7a7b7t7b7s7b7s7b7s7b7a7t/t///////+/+/+/+/+/+/+/+/+/+/+/+////////////////////////////////////////////////////////////////////"
       }
     }
   ]
